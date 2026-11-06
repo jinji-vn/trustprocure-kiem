@@ -6,10 +6,10 @@ không phải tin máy chủ TrustProcure, vì bộ kiểm không nằm trên m�
 
 ## Tải và kiểm tệp
 
-Bản `v1`:
+Bản `v1` — đường dẫn ghim theo commit `45c00f4`, không đổi được về sau:
 
 ```
-curl -LO https://raw.githubusercontent.com/jinji-vn/trustprocure-kiem/v1/kiem-bang-chung.mjs
+curl -LO https://raw.githubusercontent.com/jinji-vn/trustprocure-kiem/45c00f4fd064b0c7b1de1870f2cc8f631613dc53/kiem-bang-chung.mjs
 sha256sum kiem-bang-chung.mjs
 ```
 
@@ -42,7 +42,7 @@ Khoá công khai lấy tại `https://trustprocure.jinji.vn/.well-known/trustpro
 ## Nguồn
 
 Tệp này **sinh ra** từ kho TrustProcure (`tools/bo-xuat-danh-gia/phat-hanh/kiem-bang-chung.mjs`, commit `8d4f69a`), không sửa tay.
-Mỗi bản phát hành là một tag; bản mới có băm mới, ghi ở `SHA256SUMS` và ở hướng dẫn người mua.
+Mỗi bản phát hành ghim theo một commit; bản mới có commit và băm mới, ghi ở `SHA256SUMS` và ở hướng dẫn người mua.
 
 ---
 
