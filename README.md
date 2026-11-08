@@ -59,7 +59,7 @@ hướng dẫn người mua.
 |---|---|---|---|---|
 | v1 | 2026-11-06 | 10 | `45c00f4fd064b0c7b1de1870f2cc8f631613dc53` | `b55e055ff7e0645c9e672b6759ecff1606c17d72f1f27e48062237d8eb0a1deb` |
 | v2 | 2026-11-08 | 10, 11 | `12705aa5fd84ea1be84170ab3aaffb1399ee5713` | `1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f` |
-
+| v3 | 2026-11-08 | 10, 11 (11 có yêu cầu) | <SHA_V3> | a3ef9ebc92eea0d92c8669adb29a1dfeebe12a0bb6f7b2481f67f93941f17cee |
 ---
 
 *English:* a single-file, dependency-free, offline verifier for TrustProcure evidence bundles and bid receipts.
