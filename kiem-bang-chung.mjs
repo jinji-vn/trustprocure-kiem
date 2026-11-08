@@ -35,8 +35,8 @@ import * as __tp_node_process from "node:process";
 // ---- tools/bo-xuat-danh-gia/src/bo.ts
 const __tp_m1 = (() => {
 const DANG_BUNDLE = "trustprocure/bo-bang-chung-danh-gia";
-const PHIEN_BAN_BUNDLE = 11;
-const PHIEN_BAN_DOC_DUOC = [10, PHIEN_BAN_BUNDLE];
+const PHIEN_BAN_BUNDLE = 12;
+const PHIEN_BAN_DOC_DUOC = [10, 11, PHIEN_BAN_BUNDLE];
 const TEP_DU_LIEU = "bo-bang-chung.json";
 const TEP_DAC_TA = "DAC-TA.md";
 class BoHongError extends Error {
@@ -135,8 +135,49 @@ function docThanhPhanLuu(gt, duong) {
 function mangChuoiHayNull(o, ten, duong) {
     return o[ten] === null ? null : mangChuoi(o, ten, duong);
 }
-function docHang(gt, duong) {
+function soTrongMienHayNull(o, ten, duong, tu, den) {
+    const gt = soNguyenHayNull(o, ten, duong);
+    if (gt !== null && (gt < tu || gt > den)) {
+        throw new BoHongError(`${duong}.${ten}`, `cần một số nguyên ${String(tu)}–${String(den)} hay null`);
+    }
+    return gt;
+}
+function motTrongHayNull(o, ten, duong, tap) {
+    const gt = chuoiHayNull(o, ten, duong);
+    if (gt !== null && !tap.includes(gt)) {
+        throw new BoHongError(`${duong}.${ten}`, `cần một trong ${tap.join(", ")} hay null`);
+    }
+    return gt;
+}
+function docDieuKhoanBo(gt, duong) {
     const o = doiTuong(gt, duong);
+    let hangXuatXu = null;
+    if (o["hangXuatXu"] !== null) {
+        hangXuatXu = mang(o, "hangXuatXu", duong).map((x, i) => {
+            if (x === null)
+                return null;
+            if (typeof x !== "string" || [...x].length < 1 || [...x].length > 60 || x.startsWith(" ") || x.endsWith(" ")) {
+                throw new BoHongError(`${duong}.hangXuatXu[${String(i)}]`, "cần một chuỗi 1–60 ký tự không có dấu cách hai đầu, hay null");
+            }
+            return x;
+        });
+    }
+    return {
+        leadTimeDays: soTrongMienHayNull(o, "leadTimeDays", duong, 0, 3650),
+        paymentDays: soTrongMienHayNull(o, "paymentDays", duong, 0, 3650),
+        tamUngPhanTram: soTrongMienHayNull(o, "tamUngPhanTram", duong, 0, 100),
+        hieuLucNgay: soTrongMienHayNull(o, "hieuLucNgay", duong, 1, 365),
+        baoHanhThang: soTrongMienHayNull(o, "baoHanhThang", duong, 0, 120),
+        vanChuyen: motTrongHayNull(o, "vanChuyen", duong, ["GOM", "RIENG", "BEN_MUA_LAY"]),
+        thueGtgt: motTrongHayNull(o, "thueGtgt", duong, ["0", "5", "8", "10", "KCT", "THEO_DONG"]),
+        hangXuatXu,
+    };
+}
+function docHang(gt, duong, phienBan) {
+    const o = doiTuong(gt, duong);
+    if (phienBan < 12 && o["dieuKhoan"] !== undefined && o["dieuKhoan"] !== null) {
+        throw new BoHongError(`${duong}.dieuKhoan`, `bộ phiên bản ${String(phienBan)} không mang điều khoản`);
+    }
     return {
         bidVersionId: chuoi(o, "bidVersionId", duong),
         supplierName: chuoi(o, "supplierName", duong),
@@ -145,6 +186,7 @@ function docHang(gt, duong) {
         components: mang(o, "components", duong).map((x, i) => docThanhPhanLuu(x, `${duong}.components[${String(i)}]`)),
         maThieu: mangChuoiHayNull(o, "maThieu", duong),
         ghiChu: chuoiHayNull(o, "ghiChu", duong),
+        dieuKhoan: phienBan < 12 ? null : docDieuKhoanBo(o["dieuKhoan"], `${duong}.dieuKhoan`),
     };
 }
 function docGoiTco(gt, duong) {
@@ -179,7 +221,7 @@ function docCamKet(gt, duong) {
         chupLuc: docMoc(o["chupLuc"], `${duong}.chupLuc`),
     };
 }
-function docLuotCham(gt, duong) {
+function docLuotCham(gt, duong, phienBan) {
     const o = doiTuong(gt, duong);
     return {
         evaluationId: chuoi(o, "evaluationId", duong),
@@ -189,7 +231,7 @@ function docLuotCham(gt, duong) {
         chinhSachThanhPhan: mang(o, "chinhSachThanhPhan", duong).map((x, i) => docThanhPhanChinhSach(x, `${duong}.chinhSachThanhPhan[${String(i)}]`)),
         coBenchmark: logic(o, "coBenchmark", duong),
         taoLuc: docMoc(o["taoLuc"], `${duong}.taoLuc`),
-        hang: mang(o, "hang", duong).map((x, i) => docHang(x, `${duong}.hang[${String(i)}]`)),
+        hang: mang(o, "hang", duong).map((x, i) => docHang(x, `${duong}.hang[${String(i)}]`, phienBan)),
     };
 }
 function docTraoThau(gt, duong) {
@@ -817,7 +859,7 @@ function docBo(raw) {
         rfqId: chuoi(o, "rfqId", "$"),
         xuatLuc: docMoc(o["xuatLuc"], "$.xuatLuc"),
         goiTco: docGoiTco(o["goiTco"], "$.goiTco"),
-        luotCham: mang(o, "luotCham", "$").map((x, i) => docLuotCham(x, `$.luotCham[${String(i)}]`)),
+        luotCham: mang(o, "luotCham", "$").map((x, i) => docLuotCham(x, `$.luotCham[${String(i)}]`, phienBan)),
         traoThau: mang(o, "traoThau", "$").map((x, i) => docTraoThau(x, `$.traoThau[${String(i)}]`)),
         duLieuNen: docDuLieuNen(o["duLieuNen"], "$.duLieuNen"),
         quanTri: docQuanTri(o["quanTri"], "$.quanTri", phienBan !== 10),
@@ -1058,6 +1100,16 @@ Mỗi hàng của lượt chấm mang \`ghiChu\`: ghi chú tự do nhà cung c�
 (hãng, xuất xứ, chỗ chào khác mô tả), nguyên văn, hay \`null\` khi phong bì không có. Nó là **dữ liệu**,
 không đi vào phép tính nào ở §3–§5 và không tính lại được; nó có mặt để người đọc thấy vì sao một bên
 mua có thể chọn báo giá khác hạng 1 (xem đoạn trên).
+
+Từ bundle 12, mỗi hàng của lượt chấm còn mang \`dieuKhoan\`: điều khoản nhà cung cấp khai trong bản
+rõ niêm phong — \`leadTimeDays\`, \`paymentDays\` (số ngày, 0–3650), \`tamUngPhanTram\` (0–100),
+\`hieuLucNgay\` (số ngày báo giá còn hiệu lực tính từ hạn nộp, 1–365), \`baoHanhThang\` (0–120),
+\`vanChuyen\` (\`GOM\` · \`RIENG\` · \`BEN_MUA_LAY\`), \`thueGtgt\` (\`0\` · \`5\` · \`8\` · \`10\` ·
+\`KCT\` · \`THEO_DONG\`) — và \`hangXuatXu\`, hãng hay xuất xứ theo vị trí các dòng của phong bì
+(chuỗi 1–60 ký tự hay \`null\`; cả mảng \`null\` khi phong bì không có mảng dòng). Một ô \`null\` là
+«không khai»: phong bì không có ô ấy, hay có mà sai kiểu hoặc ngoài miền. Như \`ghiChu\`, chúng là
+**dữ liệu**: không ô nào đi vào phép tính ở §3–§5, §9 tính lại TCO từ \`components\` và \`nguon\` như
+cũ mà không đọc \`dieuKhoan\`, và bộ kiểm chỉ kiểm kiểu và miền của từng ô.
 
 ## 8. Lớp dữ liệu nền — benchmark giá \`TRUNG_VI_THEO_GOI_V1\`
 
@@ -4577,12 +4629,16 @@ return Object.freeze({ kiemGoiYMay });
 const __tp_m19 = (() => {
 const { DAC_TA } = __tp_m3; const { laTuChoi, tinhChiPhiHieuDung } = __tp_m4;
 const { khongTinhDuoc, tinhLai, xepHangLai } = __tp_m5;
+const { PHIEN_BAN_BUNDLE } = __tp_m1;
 const { HAM_THUAN_BENCHMARK_THAT, kiemDuLieuNen } = __tp_m9;
 const { QUY_DOI_THAT, kiemCamKet, kiemQuyDoiHang, kiemTapMa, soQuyDoi } = __tp_m13;
 const { kiemQuanTri } = __tp_m15;
 const { kiemRuiRo } = __tp_m17;
 const { kiemGoiYMay } = __tp_m18;
-const SHA_DAC_TA_CU = { 10: "97153b067f7ccde87d5bd85343350306c184fbdb8f9d5b9a711bd662571e20d4" };
+const SHA_DAC_TA_CU = {
+    10: "97153b067f7ccde87d5bd85343350306c184fbdb8f9d5b9a711bd662571e20d4",
+    11: "a31604b3c2635f3a0dfa09f88a76f13ba2e1b3b2c7a9e8b8ae937d01be64caa5",
+};
 const HAM_THUAN_THAT = (chinhSach, dauVao) => {
     const cs = [];
     for (const c of chinhSach) {
@@ -4674,7 +4730,7 @@ function kiemThuHang(luot) {
 }
 function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = HAM_THUAN_BENCHMARK_THAT, hamThuanQuyDoi = QUY_DOI_THAT, bamDacTaDiKem = null) {
     const loiBo = [];
-    const dacTaCuKhop = bo.goiYMay === null && bamDacTaDiKem !== null && SHA_DAC_TA_CU[bo.phienBan] === bamDacTaDiKem;
+    const dacTaCuKhop = bo.phienBan !== PHIEN_BAN_BUNDLE && bamDacTaDiKem !== null && SHA_DAC_TA_CU[bo.phienBan] === bamDacTaDiKem;
     if (dacTaDiKem !== DAC_TA && !dacTaCuKhop) {
         loiBo.push(`${"DAC-TA.md"} đi kèm KHÁC đặc tả bộ kiểm này cài — kết luận dưới đây không áp cho bundle này`);
     }
