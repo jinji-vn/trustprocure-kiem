@@ -21,6 +21,7 @@
 //   tools/bo-xuat-danh-gia/src/kiem-quan-tri.ts
 //   tools/bo-xuat-danh-gia/src/doc-lap/rui-ro-lai.ts
 //   tools/bo-xuat-danh-gia/src/kiem-rui-ro.ts
+//   tools/bo-xuat-danh-gia/src/kiem-goi-y-may.ts
 //   tools/bo-xuat-danh-gia/src/kiem.ts
 //   tools/bo-xuat-danh-gia/src/kiem-thu-muc.ts
 //   tools/bo-xuat-danh-gia/src/tham-so.ts
@@ -34,7 +35,8 @@ import * as __tp_node_process from "node:process";
 // ---- tools/bo-xuat-danh-gia/src/bo.ts
 const __tp_m1 = (() => {
 const DANG_BUNDLE = "trustprocure/bo-bang-chung-danh-gia";
-const PHIEN_BAN_BUNDLE = 10;
+const PHIEN_BAN_BUNDLE = 11;
+const PHIEN_BAN_DOC_DUOC = [10, PHIEN_BAN_BUNDLE];
 const TEP_DU_LIEU = "bo-bang-chung.json";
 const TEP_DAC_TA = "DAC-TA.md";
 class BoHongError extends Error {
@@ -725,6 +727,45 @@ function docRuiRo(gt, duong) {
         danhGia: mang(o, "danhGia", duong).map((x, i) => docDanhGiaRuiRo(x, `${duong}.danhGia[${String(i)}]`)),
     };
 }
+function docGoiYMay(gt, duong) {
+    const o = doiTuong(gt, duong);
+    return {
+        nguonThoiGian: chuoi(o, "nguonThoiGian", duong),
+        goiY: mang(o, "goiY", duong).map((x, i) => {
+            const p = `${duong}.goiY[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return {
+                id: chuoi(k, "id", p),
+                loai: chuoi(k, "loai", p),
+                nguonMay: chuoi(k, "nguonMay", p),
+                phienBan: soNguyen(k, "phienBan", p),
+                dauVaoBam: chuoi(k, "dauVaoBam", p),
+                trangThai: chuoi(k, "trangThai", p),
+                tacGia: chuoi(k, "tacGia", p),
+                ghiLuc: moc6(k, "ghiLuc", p),
+                nguyenVan: k,
+            };
+        }),
+        xacNhan: mang(o, "xacNhan", duong).map((x, i) => {
+            const p = `${duong}.xacNhan[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return {
+                id: chuoi(k, "id", p),
+                goiYId: chuoi(k, "goiYId", p),
+                o: chuoi(k, "o", p),
+                ketQua: chuoi(k, "ketQua", p),
+                userId: chuoi(k, "userId", p),
+                ghiLuc: moc6(k, "ghiLuc", p),
+                nguyenVan: k,
+            };
+        }),
+        thamChieu: mang(o, "thamChieu", duong).map((x, i) => {
+            const p = `${duong}.thamChieu[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return { bang: chuoi(k, "bang", p), cot: chuoi(k, "cot", p), id: chuoi(k, "id", p), goiYId: chuoi(k, "goiYId", p) };
+        }),
+    };
+}
 function docBo(raw) {
     const o = doiTuong(raw, "$");
     const dang = chuoi(o, "dang", "$");
@@ -732,8 +773,11 @@ function docBo(raw) {
         throw new BoHongError("$.dang", `cần "${DANG_BUNDLE}", gặp "${dang}"`);
     }
     const phienBan = soNguyen(o, "phienBan", "$");
-    if (phienBan !== PHIEN_BAN_BUNDLE) {
-        throw new BoHongError("$.phienBan", `bộ kiểm này chỉ đọc phiên bản ${String(PHIEN_BAN_BUNDLE)}`);
+    if (!PHIEN_BAN_DOC_DUOC.includes(phienBan)) {
+        throw new BoHongError("$.phienBan", `bộ kiểm này chỉ đọc phiên bản ${PHIEN_BAN_DOC_DUOC.join(", ")}`);
+    }
+    if (phienBan === 10 && o["goiYMay"] !== undefined && o["goiYMay"] !== null) {
+        throw new BoHongError("$.goiYMay", "bộ phiên bản 10 không mang lớp gợi ý máy");
     }
     return {
         dang,
@@ -749,9 +793,10 @@ function docBo(raw) {
         duLieuNen: docDuLieuNen(o["duLieuNen"], "$.duLieuNen"),
         quanTri: docQuanTri(o["quanTri"], "$.quanTri"),
         ruiRo: docRuiRo(o["ruiRo"], "$.ruiRo"),
+        goiYMay: phienBan === 10 ? null : docGoiYMay(o["goiYMay"], "$.goiYMay"),
     };
 }
-return Object.freeze({ DANG_BUNDLE, PHIEN_BAN_BUNDLE, TEP_DU_LIEU, TEP_DAC_TA, BoHongError, docBo });
+return Object.freeze({ DANG_BUNDLE, PHIEN_BAN_BUNDLE, PHIEN_BAN_DOC_DUOC, TEP_DU_LIEU, TEP_DAC_TA, BoHongError, docBo });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/kiem-bien-nhan.ts
@@ -1236,6 +1281,11 @@ tự, phải bằng \`goiTco.tapMa\` — tập mã nhà cung cấp thấy lúc n
 tổng vượt miền tiền). Hàng có \`effectiveCost\` thì \`maThieu = null\`. Ngoài vế ấy, \`maThieu\` là dữ
 liệu: lời khai gốc không nằm trong bundle.
 
+\`CHAO_THIEU\`: báo giá có ít nhất một dòng nhà cung cấp đánh dấu *không chào* — \`effectiveCost\` và \`rank\`
+của hàng là \`null\` theo luật «không lấy 0» (hàng chào thiếu không bao giờ đứng hạng trên hàng chào đủ), và
+\`maThieu\` mang mã này. Bộ kiểm chỉ đòi hàng mang \`CHAO_THIEU\` không có hạng; dòng nào không chào là dữ liệu
+của phong bì đã mở, không nằm trong bundle.
+
 ### 9.5 Thứ phần này KHÔNG tính lại
 
 Lời khai gốc — \`ngayKhai\`, \`coSo\`, và các ô \`giaTri\` khai thẳng — đến từ phong bì đã mở, không nằm
@@ -1653,6 +1703,23 @@ người ký. Không bước nào ở phần này dùng đồng hồ ngoài phé
 khi tổ chức có lớp này, hay ở tổ chức chưa bật: bộ kiểm đếm và in, không làm trượt.
 \`policyId\` khác \`policyId\` của lượt chấm \`L\`: bộ kiểm báo, không làm trượt — lượt chấm ghi trước khi gói có phiên bản ghim giữ phiên bản
 lúc chấm.
+
+## 13. Lớp gợi ý máy — lịch sử đề xuất và xác nhận (bundle phiên bản 11)
+
+\`goiYMay\` mang mọi hàng \`goiY\` của gói — máy (tất định hay mô hình) đề xuất gì: \`loai\`, \`nguonMay\`, mô hình và vùng nếu có,
+\`phienBan\` của bộ gợi ý, \`dauVaoBam\` (SHA-256 hex của đầu vào chính tắc), \`dauVao\`, \`dauRa\` nguyên văn, \`trangThai\`, token và
+chi phí — và mọi hàng \`xacNhan\`: người nào (\`userId\`) xác nhận ô nào (\`o\`) với kết quả nào (\`CHAP_NHAN\`, \`SUA\`, \`BAC\`) và giá
+trị cuối. \`thamChieu\` liệt kê từng cột \`goi_y_id\` ở bảng nghiệp vụ trỏ tới một gợi ý (rỗng khi chưa bảng nào mang cột ấy).
+
+**Lớp này là lịch sử, không phải phép tính.** Không con số nào của §3–§12 đọc nó; bộ kiểm **không dùng nó để tính lại bất kỳ con số
+nào**, và đổi một dòng ở lớp này không đổi kết quả \`ok\`. Nó có mặt để người đọc thấy máy đã gợi ý gì và người đã quyết gì — cả hai
+đều có người ký: hàng gợi ý mang \`tacGia\`, hàng xác nhận mang \`userId\`.
+
+Bộ kiểm chỉ kiểm hai điều về chính lớp ấy, và chúng làm trượt:
+1. mỗi \`xacNhan[].goiYId\` là \`id\` của một phần tử \`goiY\` có mặt;
+2. mỗi \`thamChieu[].goiYId\` là \`id\` của một phần tử \`goiY\` có mặt **và** có ít nhất một hàng \`xacNhan\` trỏ tới nó — một gợi ý đã đi vào
+   dữ liệu nghiệp vụ mà không ai xác nhận là một gợi ý máy quyết thay người.
+Ngoài ra \`id\` của \`goiY\` và của \`xacNhan\` không trùng trong lớp. Bundle phiên bản 10 không mang lớp này; bộ kiểm đọc nó như trước.
 `;
 return Object.freeze({ DAC_TA_PHIEN_BAN, DAC_TA });
 })();
@@ -4398,14 +4465,59 @@ function kiemRuiRo(bo) {
 return Object.freeze({ kiemRuiRo });
 })();
 
-// ---- tools/bo-xuat-danh-gia/src/kiem.ts
+// ---- tools/bo-xuat-danh-gia/src/kiem-goi-y-may.ts
 const __tp_m18 = (() => {
+function kiemGoiYMay(bo) {
+    const lop = bo.goiYMay;
+    if (lop === null)
+        return null;
+    const loi = [];
+    const idGoiY = new Set();
+    for (const g of lop.goiY) {
+        if (idGoiY.has(g.id))
+            loi.push(`gợi ý ${g.id} xuất hiện hai lần ở goiYMay.goiY (§13)`);
+        idGoiY.add(g.id);
+    }
+    const idXacNhan = new Set();
+    const coXacNhan = new Set();
+    for (const x of lop.xacNhan) {
+        if (idXacNhan.has(x.id))
+            loi.push(`xác nhận ${x.id} xuất hiện hai lần ở goiYMay.xacNhan (§13)`);
+        idXacNhan.add(x.id);
+        if (!idGoiY.has(x.goiYId))
+            loi.push(`xác nhận ${x.id} trỏ gợi ý ${x.goiYId} KHÔNG có trong goiYMay.goiY (§13.1)`);
+        coXacNhan.add(x.goiYId);
+    }
+    for (const t of lop.thamChieu) {
+        const nhan = `${t.bang}.${t.cot} của hàng ${t.id}`;
+        if (!idGoiY.has(t.goiYId)) {
+            loi.push(`tham chiếu ${nhan} trỏ gợi ý ${t.goiYId} KHÔNG có trong goiYMay.goiY (§13.2)`);
+            continue;
+        }
+        if (!coXacNhan.has(t.goiYId))
+            loi.push(`tham chiếu ${nhan} trỏ gợi ý ${t.goiYId} mà KHÔNG hàng xác nhận nào — máy quyết thay người (§13.2)`);
+    }
+    return {
+        loi,
+        soGoiY: lop.goiY.length,
+        soXacNhan: lop.xacNhan.length,
+        soThamChieu: lop.thamChieu.length,
+        soChuaXacNhan: lop.goiY.filter((g) => !coXacNhan.has(g.id)).length,
+    };
+}
+return Object.freeze({ kiemGoiYMay });
+})();
+
+// ---- tools/bo-xuat-danh-gia/src/kiem.ts
+const __tp_m19 = (() => {
 const { DAC_TA } = __tp_m3; const { laTuChoi, tinhChiPhiHieuDung } = __tp_m4;
 const { khongTinhDuoc, tinhLai, xepHangLai } = __tp_m5;
 const { HAM_THUAN_BENCHMARK_THAT, kiemDuLieuNen } = __tp_m9;
 const { QUY_DOI_THAT, kiemCamKet, kiemQuyDoiHang, kiemTapMa, soQuyDoi } = __tp_m13;
 const { kiemQuanTri } = __tp_m15;
 const { kiemRuiRo } = __tp_m17;
+const { kiemGoiYMay } = __tp_m18;
+const SHA_DAC_TA_CU = { 10: "97153b067f7ccde87d5bd85343350306c184fbdb8f9d5b9a711bd662571e20d4" };
 const HAM_THUAN_THAT = (chinhSach, dauVao) => {
     const cs = [];
     for (const c of chinhSach) {
@@ -4495,9 +4607,10 @@ function kiemThuHang(luot) {
     });
     return noi;
 }
-function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = HAM_THUAN_BENCHMARK_THAT, hamThuanQuyDoi = QUY_DOI_THAT) {
+function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = HAM_THUAN_BENCHMARK_THAT, hamThuanQuyDoi = QUY_DOI_THAT, bamDacTaDiKem = null) {
     const loiBo = [];
-    if (dacTaDiKem !== DAC_TA) {
+    const dacTaCuKhop = bo.goiYMay === null && bamDacTaDiKem !== null && SHA_DAC_TA_CU[bo.phienBan] === bamDacTaDiKem;
+    if (dacTaDiKem !== DAC_TA && !dacTaCuKhop) {
         loiBo.push(`${"DAC-TA.md"} đi kèm KHÁC đặc tả bộ kiểm này cài — kết luận dưới đây không áp cho bundle này`);
     }
     const hang = [];
@@ -4535,6 +4648,7 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
     const camKet = kiemCamKet(bo, hamThuanQuyDoi);
     const quanTri = kiemQuanTri(bo);
     const ruiRo = kiemRuiRo(bo);
+    const goiYMay = kiemGoiYMay(bo);
     return {
         dat: loiBo.length === 0 &&
             soLech === 0 &&
@@ -4542,7 +4656,8 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
             duLieuNenDat &&
             camKet.loi.length === 0 &&
             quanTri.loi.length === 0 &&
-            ruiRo.loi.length === 0,
+            ruiRo.loi.length === 0 &&
+            (goiYMay === null || goiYMay.loi.length === 0),
         soHang: hang.length,
         soDat,
         soLech,
@@ -4555,18 +4670,19 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
         camKet,
         quanTri,
         ruiRo,
+        goiYMay,
     };
 }
-return Object.freeze({ HAM_THUAN_THAT, kiemBo });
+return Object.freeze({ SHA_DAC_TA_CU, HAM_THUAN_THAT, kiemBo });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/kiem-thu-muc.ts
-const __tp_m19 = (() => {
+const __tp_m20 = (() => {
 const { createHash } = __tp_node_crypto;
 const { readFile } = __tp_node_fs_promises;
 const { join } = __tp_node_path;
 const { TEP_DAC_TA, TEP_DU_LIEU, docBo } = __tp_m1;
-const { kiemBo } = __tp_m18;
+const { kiemBo } = __tp_m19;
 function bam(vanBan) {
     return createHash("sha256").update(Buffer.from(vanBan, "utf8")).digest("hex");
 }
@@ -4579,7 +4695,7 @@ async function kiemThuMuc(thuMuc, ra, loi) {
         loi(`${TEP_DAC_TA} bam ra ${bamDiKem}, bundle khai ${bo.dacTaSha256} — dac ta di kem da bi doi.\n`);
         return 1;
     }
-    const kq = kiemBo(bo, dacTa);
+    const kq = kiemBo(bo, dacTa, undefined, undefined, undefined, bamDiKem);
     for (const d of kq.loiBo)
         ra(`LOI\t${d}\n`);
     for (const h of kq.hang) {
@@ -4616,6 +4732,12 @@ async function kiemThuMuc(thuMuc, ra, loi) {
         ra(`CANH-BAO-RUI-RO\t${d}\n`);
     ra(`rui-ro\tdanh-gia=${String(kq.ruiRo.soDanhGia)}\tno=${String(kq.ruiRo.soNo)}\tchu-ky=${String(kq.ruiRo.soChuKy)}` +
         `\tde-xuat-khong-danh-gia=${String(kq.ruiRo.soDeXuatKhongDanhGia)}\tloi=${String(kq.ruiRo.loi.length)}\tcanh-bao=${String(kq.ruiRo.canhBao.length)}\n`);
+    if (kq.goiYMay !== null) {
+        for (const d of kq.goiYMay.loi)
+            ra(`LOI-GOI-Y-MAY\t${d}\n`);
+        ra(`goi-y-may\tgoi-y=${String(kq.goiYMay.soGoiY)}\txac-nhan=${String(kq.goiYMay.soXacNhan)}\ttham-chieu=${String(kq.goiYMay.soThamChieu)}` +
+            `\tchua-xac-nhan=${String(kq.goiYMay.soChuaXacNhan)}\tloi=${String(kq.goiYMay.loi.length)}\n`);
+    }
     ra(`${kq.dat ? "ok=true" : "ok=false"}` +
         `\thang=${String(kq.soHang)}\tdat=${String(kq.soDat)}\tlech=${String(kq.soLech)}` +
         `\tkhong-tai-lap-duoc=${String(kq.soKhongTaiLapDuoc)}\n`);
@@ -4625,7 +4747,7 @@ return Object.freeze({ kiemThuMuc });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/tham-so.ts
-const __tp_m20 = (() => {
+const __tp_m21 = (() => {
 function docCo(thamSo, can, tuyChon = []) {
     const duoc = [...can, ...tuyChon];
     const ra = new Map();
@@ -4653,13 +4775,13 @@ return Object.freeze({ docCo });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/mot-tep/kiem-bang-chung.ts
-const __tp_m21 = (() => {
+const __tp_m22 = (() => {
 const { readFile } = __tp_node_fs_promises;
 const { argv, exit, stderr, stdout } = __tp_node_process;
 const { TEP_DAC_TA, TEP_DU_LIEU } = __tp_m1;
 const { docChuKy, docKhoaDaDan, kiemBienNhanBangKhoa } = __tp_m2;
-const { kiemThuMuc } = __tp_m19;
-const { docCo } = __tp_m20;
+const { kiemThuMuc } = __tp_m20;
+const { docCo } = __tp_m21;
 const CACH_DUNG = `Cách dùng (node trần, không cần kho, không mạng):
   node kiem-bang-chung.mjs <thu-muc-bo>
   node kiem-bang-chung.mjs kiem --bo <thu-muc-bo>

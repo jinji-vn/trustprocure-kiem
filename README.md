@@ -6,20 +6,21 @@ không phải tin máy chủ TrustProcure, vì bộ kiểm không nằm trên m�
 
 ## Tải và kiểm tệp
 
-Bản `v1` — đường dẫn ghim theo commit `45c00f4`, không đổi được về sau:
+Bản `v2` (2026-11-08) — đọc bộ bằng chứng **phiên bản 10 và 11** (phiên bản 11 thêm lớp «Gợi ý máy», `DAC-TA.md` §13 — lớp lịch sử, bộ kiểm
+không tính lại gì từ nó). Đường dẫn ghim theo commit, không đổi được về sau — xem mục *Bản phát hành* dưới. SHA-256 phải đúng bằng:
 
 ```
-curl -LO https://raw.githubusercontent.com/jinji-vn/trustprocure-kiem/45c00f4fd064b0c7b1de1870f2cc8f631613dc53/kiem-bang-chung.mjs
-sha256sum kiem-bang-chung.mjs
-```
-
-SHA-256 phải đúng bằng:
-
-```
-b55e055ff7e0645c9e672b6759ecff1606c17d72f1f27e48062237d8eb0a1deb
+1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f
 ```
 
 (Windows PowerShell: `Get-FileHash kiem-bang-chung.mjs -Algorithm SHA256`.) Lệch một ký tự thì đừng chạy.
+
+Bản `v1` (2026-11-06, chỉ đọc bộ phiên bản 10) vẫn tải được theo commit cũ:
+
+```
+curl -LO https://raw.githubusercontent.com/jinji-vn/trustprocure-kiem/45c00f4fd064b0c7b1de1870f2cc8f631613dc53/kiem-bang-chung.mjs
+sha256sum kiem-bang-chung.mjs   # b55e055ff7e0645c9e672b6759ecff1606c17d72f1f27e48062237d8eb0a1deb
+```
 
 ## Kiểm một bộ bằng chứng
 
@@ -41,8 +42,16 @@ Khoá công khai lấy tại `https://trustprocure.jinji.vn/.well-known/trustpro
 
 ## Nguồn
 
-Tệp này **sinh ra** từ kho TrustProcure (`tools/bo-xuat-danh-gia/phat-hanh/kiem-bang-chung.mjs`, commit `8d4f69a`), không sửa tay.
-Mỗi bản phát hành ghim theo một commit; bản mới có commit và băm mới, ghi ở `SHA256SUMS` và ở hướng dẫn người mua.
+Tệp này **sinh ra** từ kho TrustProcure (`tools/bo-xuat-danh-gia/phat-hanh/kiem-bang-chung.mjs`; bản `v2` từ commit `018c764`, bản `v1` từ
+commit `8d4f69a`), không sửa tay. Mỗi bản phát hành ghim theo một commit của kho này; bản mới có commit và băm mới, ghi ở `SHA256SUMS` và ở
+hướng dẫn người mua.
+
+## Bản phát hành
+
+| Bản | Ngày | Đọc bộ phiên bản | Commit ghim | SHA-256 |
+|---|---|---|---|---|
+| v1 | 2026-11-06 | 10 | `45c00f4fd064b0c7b1de1870f2cc8f631613dc53` | `b55e055ff7e0645c9e672b6759ecff1606c17d72f1f27e48062237d8eb0a1deb` |
+| v2 | 2026-11-08 | 10, 11 | *(ghi ở commit kế sau khi tệp này vào kho)* | `1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f` |
 
 ---
 
