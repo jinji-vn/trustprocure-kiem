@@ -7,7 +7,14 @@ không phải tin máy chủ TrustProcure, vì bộ kiểm không nằm trên m�
 ## Tải và kiểm tệp
 
 Bản `v2` (2026-11-08) — đọc bộ bằng chứng **phiên bản 10 và 11** (phiên bản 11 thêm lớp «Gợi ý máy», `DAC-TA.md` §13 — lớp lịch sử, bộ kiểm
-không tính lại gì từ nó). Đường dẫn ghim theo commit, không đổi được về sau — xem mục *Bản phát hành* dưới. SHA-256 phải đúng bằng:
+không tính lại gì từ nó). Đường dẫn ghim theo commit `12705aa`, không đổi được về sau:
+
+```
+curl -LO https://raw.githubusercontent.com/jinji-vn/trustprocure-kiem/12705aa5fd84ea1be84170ab3aaffb1399ee5713/kiem-bang-chung.mjs
+sha256sum kiem-bang-chung.mjs
+```
+
+SHA-256 phải đúng bằng:
 
 ```
 1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f
@@ -51,7 +58,7 @@ hướng dẫn người mua.
 | Bản | Ngày | Đọc bộ phiên bản | Commit ghim | SHA-256 |
 |---|---|---|---|---|
 | v1 | 2026-11-06 | 10 | `45c00f4fd064b0c7b1de1870f2cc8f631613dc53` | `b55e055ff7e0645c9e672b6759ecff1606c17d72f1f27e48062237d8eb0a1deb` |
-| v2 | 2026-11-08 | 10, 11 | *(ghi ở commit kế sau khi tệp này vào kho)* | `1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f` |
+| v2 | 2026-11-08 | 10, 11 | `12705aa5fd84ea1be84170ab3aaffb1399ee5713` | `1c42c35916e773ab1cfed16bb72b8756e8fb272366ab1eb60f0e6f44d04aad8f` |
 
 ---
 
