@@ -431,7 +431,7 @@ function thuTu(o, ten, duong) {
         throw new BoHongError(`${duong}.${ten}`, "cần số thứ tự dạng chuỗi chữ số");
     return gt;
 }
-function docQuanTri(gt, duong) {
+function docQuanTri(gt, duong, coYeuCau) {
     const o = doiTuong(gt, duong);
     const g = doiTuong(o["goi"], `${duong}.goi`);
     const pg = `${duong}.goi`;
@@ -521,6 +521,7 @@ function docQuanTri(gt, duong) {
             bamDanhSach: bamHayNull(x, "bamDanhSach", p),
             bamNganSach: bamHayNull(x, "bamNganSach", p),
             bamGiaoHang: bam(x, "bamGiaoHang", p),
+            bamYeuCau: coYeuCau ? bam(x, "bamYeuCau", p) : null,
         })),
         traVe: mangDoi("traVe", (x, p) => ({
             lanNop: soNguyen(x, "lanNop", p),
@@ -766,6 +767,31 @@ function docGoiYMay(gt, duong) {
         }),
     };
 }
+function docLopYeuCauBo(gt, duong) {
+    const o = doiTuong(gt, duong);
+    let chung = null;
+    if (o["chung"] !== null) {
+        const c = doiTuong(o["chung"], `${duong}.chung`);
+        const ra = {};
+        for (const k of Object.keys(c))
+            ra[k] = chuoi(c, k, `${duong}.chung`);
+        chung = ra;
+    }
+    return {
+        chung,
+        dong: mang(o, "dong", duong).map((x, i) => {
+            const p = `${duong}.dong[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return {
+                lineNo: soNguyen(k, "lineNo", p),
+                moTa: chuoi(k, "moTa", p),
+                donVi: chuoi(k, "donVi", p),
+                soLuong: chuoi(k, "soLuong", p),
+                yeuCau: chuoiHayNull(k, "yeuCau", p),
+            };
+        }),
+    };
+}
 function docBo(raw) {
     const o = doiTuong(raw, "$");
     const dang = chuoi(o, "dang", "$");
@@ -779,6 +805,9 @@ function docBo(raw) {
     if (phienBan === 10 && o["goiYMay"] !== undefined && o["goiYMay"] !== null) {
         throw new BoHongError("$.goiYMay", "bộ phiên bản 10 không mang lớp gợi ý máy");
     }
+    if (phienBan === 10 && o["yeuCau"] !== undefined && o["yeuCau"] !== null) {
+        throw new BoHongError("$.yeuCau", "bộ phiên bản 10 không mang lớp yêu cầu");
+    }
     return {
         dang,
         phienBan,
@@ -791,9 +820,10 @@ function docBo(raw) {
         luotCham: mang(o, "luotCham", "$").map((x, i) => docLuotCham(x, `$.luotCham[${String(i)}]`)),
         traoThau: mang(o, "traoThau", "$").map((x, i) => docTraoThau(x, `$.traoThau[${String(i)}]`)),
         duLieuNen: docDuLieuNen(o["duLieuNen"], "$.duLieuNen"),
-        quanTri: docQuanTri(o["quanTri"], "$.quanTri"),
+        quanTri: docQuanTri(o["quanTri"], "$.quanTri", phienBan !== 10),
         ruiRo: docRuiRo(o["ruiRo"], "$.ruiRo"),
         goiYMay: phienBan === 10 ? null : docGoiYMay(o["goiYMay"], "$.goiYMay"),
+        yeuCau: phienBan === 10 ? null : docLopYeuCauBo(o["yeuCau"], "$.yeuCau"),
     };
 }
 return Object.freeze({ DANG_BUNDLE, PHIEN_BAN_BUNDLE, PHIEN_BAN_DOC_DUOC, TEP_DU_LIEU, TEP_DAC_TA, BoHongError, docBo });
@@ -1361,8 +1391,20 @@ dualApprovalThreshold\`.
 Chỉ khi gói đã mở (\`goi.moLuc\` khác \`null\`). Gọi \`c = 2\` nếu \`goi.requiresDualApproval\`, không thì \`1\`.
 Ứng viên là MỌI chữ ký có \`bamNoiDung\` khác \`null\` và \`approverUserId ≠ goi.nguoiTao\` — không cắt theo
 mốc: cơ sở dữ liệu chỉ nhận chữ ký khi gói đang chờ duyệt, nên mọi chữ ký có trước lần mở. Gói ĐẠT khi
-có một nhóm ứng viên cùng (\`bamNoiDung\`, \`bamGiaoHang\`) gồm ít nhất \`c\` người ký khác nhau — cơ sở dữ
-liệu đếm đúng một nhóm như thế (nhóm khớp nội dung và số ngày giao hiện hành lúc mở).
+có một nhóm ứng viên cùng (\`bamNoiDung\`, \`bamGiaoHang\`, \`bamYeuCau\`) gồm ít nhất \`c\` người ký khác nhau —
+cơ sở dữ liệu đếm đúng một nhóm như thế (nhóm khớp nội dung, số ngày giao và yêu cầu hiện hành lúc mở).
+
+Bộ phiên bản 11 trở đi: ở CẢ hai chế độ, ứng viên còn phải có \`bamYeuCau\` bằng \`B_yc\` dưới đây, tính từ
+mục \`yeuCau\` cấp cao nhất của bộ. Bộ phiên bản 10 không mang \`yeuCau\` và \`bamYeuCau\`: nhóm theo hai băm,
+không vế yêu cầu.
+
+\`B_yc\` = SHA-256 (hex chữ thường) của byte UTF-8 của chuỗi \`YEU_CAU|1|\` + \`C\` + \`|\` + \`D\`, trong đó:
+- \`C\` — mỗi khoá \`k\` của \`yeuCau.chung\` (rỗng khi \`chung\` là \`null\`), xếp theo thứ tự byte UTF-8 của khoá:
+  \`k\` + \`:\` + SHA-256 hex của byte UTF-8 của giá trị; nối bằng \`;\`;
+- \`D\` — mỗi phần tử của \`yeuCau.dong\` có \`yeuCau\` khác \`null\`, xếp theo \`lineNo\` tăng dần (so như số):
+  \`lineNo\` viết thập phân + \`:\` + SHA-256 hex của byte UTF-8 của \`yeuCau\`; nối bằng \`;\`.
+Gói không khai yêu cầu nào cho SHA-256 của \`YEU_CAU|1||\`. \`moTa\`, \`donVi\`, \`soLuong\` đi kèm để người đọc thấy
+yêu cầu thuộc dòng nào; chúng KHÔNG vào \`B_yc\`.
 
 MVP1: các ứng viên trên.
 
@@ -1423,7 +1465,7 @@ xuất của gói S3.
 
 ### 11.9 Khai — cơ sở dữ liệu đã cưỡng chế, phần này KHÔNG tính lại
 
-\`bamNoiDung\` và \`bamGiaoHang\` (chỉ đòi bằng nhau trong chữ ký đếm); phép gộp nhóm nhà cung cấp của số
+\`bamNoiDung\` và \`bamGiaoHang\` (chỉ đòi bằng nhau trong chữ ký đếm — \`bamYeuCau\` thì tính lại, 11.4); phép gộp nhóm nhà cung cấp của số
 tối thiểu; xoay vòng; hậu kiểm số báo giá lúc duyệt trao thầu; người ký độc lập (ngoài tập loại trừ) lúc
 mở và lúc trao; nhãn \`moiSauKhiKy\`; \`vaiLucKy\` (cơ sở dữ liệu đặt lúc ký); thẩm định trên phiên bản
 Passport MỚI NHẤT, xác minh của nhà cung cấp còn hiệu lực lúc thẩm định, người thẩm định ngoài tập loại trừ
@@ -3253,10 +3295,25 @@ function sha256(s) {
 function thuTuByteUtf8(a, b) {
     return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
+function bamYeuCauLai(yc) {
+    const chung = yc.chung === null
+        ? ""
+        : Object.keys(yc.chung)
+            .sort(thuTuByteUtf8)
+            .map((k) => `${k}:${sha256(yc.chung[k])}`)
+            .join(";");
+    const dong = yc.dong
+        .filter((d) => d.yeuCau !== null)
+        .slice()
+        .sort((a, b) => a.lineNo - b.lineNo)
+        .map((d) => `${String(d.lineNo)}:${sha256(d.yeuCau)}`)
+        .join(";");
+    return sha256(`YEU_CAU|1|${chung}|${dong}`);
+}
 function nhomDongNhat(ds) {
     const nhom = new Map();
     for (const a of ds) {
-        const k = `${String(a.bamNoiDung)}|${a.bamGiaoHang}`;
+        const k = `${String(a.bamNoiDung)}|${a.bamGiaoHang}|${String(a.bamYeuCau)}`;
         nhom.set(k, (nhom.get(k) ?? new Set()).add(a.approverUserId));
     }
     return Math.max(0, ...[...nhom.values()].map((s) => s.size));
@@ -3264,7 +3321,7 @@ function nhomDongNhat(ds) {
 function soNguoi(ds) {
     return new Set(ds.map((x) => x.approverUserId)).size;
 }
-function tinhLaiQuanTri(qt) {
+function tinhLaiQuanTri(qt, yeuCau = null) {
     const loi = [];
     const canhBao = [];
     const bac = new Map();
@@ -3354,6 +3411,12 @@ function tinhLaiQuanTri(qt) {
     if (mo !== null) {
         const can = qt.goi.requiresDualApproval ? 2 : 1;
         let ungVien = qt.chuKyMoGoi.filter((a) => a.bamNoiDung !== null && a.approverUserId !== qt.goi.nguoiTao);
+        let lechYeuCau = 0;
+        if (yeuCau !== null) {
+            const bYc = bamYeuCauLai(yeuCau);
+            lechYeuCau = ungVien.filter((a) => a.bamYeuCau !== bYc).length;
+            ungVien = ungVien.filter((a) => a.bamYeuCau === bYc);
+        }
         if (s3 && ns !== null && ns.tierTuSoTien !== null) {
             const bNs = sha256(`NGAN_SACH|${ns.estimatedValue}|${ns.currency}|${ns.policyId}|${ns.tierTuSoTien}|${String(qt.goi.requiresDualApproval)}`);
             const dong = [
@@ -3373,7 +3436,9 @@ function tinhLaiQuanTri(qt) {
         }
         soNguoiKyMoGoi = nhomDongNhat(ungVien);
         if (soNguoiKyMoGoi < can) {
-            loi.push(`gói mở lúc ${mo} với ${String(soNguoiKyMoGoi)} người ký đếm được, cần ${String(can)} (§11.4; ${String(qt.chuKyMoGoi.length)} chữ ký trong bộ)`);
+            loi.push(`gói mở lúc ${mo} với ${String(soNguoiKyMoGoi)} người ký đếm được, cần ${String(can)} (§11.4; ${String(qt.chuKyMoGoi.length)} chữ ký trong bộ` +
+                (lechYeuCau > 0 ? `; ${String(lechYeuCau)} chữ ký mang băm yêu cầu khác băm tính lại từ yeuCau` : "") +
+                `)`);
         }
     }
     const nop = qt.goi.nopLuc;
@@ -3500,7 +3565,7 @@ function tinhLaiQuanTri(qt) {
     });
     return { cheDo, loi, canhBao, bac, soNguoiKyMoGoi, traoThauDuyet };
 }
-return Object.freeze({ soSanhGiaTri, tinhLaiQuanTri });
+return Object.freeze({ soSanhGiaTri, bamYeuCauLai, tinhLaiQuanTri });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/kiem-quan-tri.ts
@@ -3514,7 +3579,7 @@ const bangNhau = (a, b) => {
 };
 function kiemQuanTri(bo) {
     const qt = bo.quanTri;
-    const lai = tinhLaiQuanTri(qt);
+    const lai = tinhLaiQuanTri(qt, bo.yeuCau);
     const loi = [...lai.loi];
     if (qt.cheDo !== lai.cheDo) {
         loi.push(`HAI LỚP BẤT ĐỒNG: chế độ của cơ sở dữ liệu là ${qt.cheDo}, lớp độc lập suy ra ${lai.cheDo} (§11.2)`);
