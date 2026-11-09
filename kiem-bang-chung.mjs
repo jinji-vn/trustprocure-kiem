@@ -35,8 +35,8 @@ import * as __tp_node_process from "node:process";
 // ---- tools/bo-xuat-danh-gia/src/bo.ts
 const __tp_m1 = (() => {
 const DANG_BUNDLE = "trustprocure/bo-bang-chung-danh-gia";
-const PHIEN_BAN_BUNDLE = 12;
-const PHIEN_BAN_DOC_DUOC = [10, 11, PHIEN_BAN_BUNDLE];
+const PHIEN_BAN_BUNDLE = 13;
+const PHIEN_BAN_DOC_DUOC = [10, 11, 12, PHIEN_BAN_BUNDLE];
 const TEP_DU_LIEU = "bo-bang-chung.json";
 const TEP_DAC_TA = "DAC-TA.md";
 class BoHongError extends Error {
@@ -173,8 +173,47 @@ function docDieuKhoanBo(gt, duong) {
         hangXuatXu,
     };
 }
+const MAU_ID_TEP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const MAU_SHA_TEP = /^[0-9a-f]{64}$/u;
+const LOAI_TEP = ["application/pdf", "image/jpeg", "image/png"];
+function docTepBo(gt, duong) {
+    if (!Array.isArray(gt))
+        throw new BoHongError(duong, "cần một mảng");
+    if (gt.length > 5)
+        throw new BoHongError(duong, "tối đa 5 tệp");
+    const da = new Set();
+    return gt.map((x, i) => {
+        const d = `${duong}[${String(i)}]`;
+        const o = doiTuong(x, d);
+        const khoa = Object.keys(o).sort().join(",");
+        if (khoa !== "id,kichThuoc,loai,sha256BanRo,tenTep")
+            throw new BoHongError(d, `cần đúng năm khoá id, kichThuoc, loai, sha256BanRo, tenTep, gặp ${khoa}`);
+        const id = chuoi(o, "id", d);
+        if (!MAU_ID_TEP.test(id))
+            throw new BoHongError(`${d}.id`, "cần một UUID chữ thường");
+        if (da.has(id))
+            throw new BoHongError(`${d}.id`, "mã tệp trùng trong hàng");
+        da.add(id);
+        const tenTep = chuoi(o, "tenTep", d);
+        if ([...tenTep].length < 1 || [...tenTep].length > 255)
+            throw new BoHongError(`${d}.tenTep`, "cần một chuỗi 1–255 ký tự");
+        const loai = motTrongHayNull(o, "loai", d, LOAI_TEP);
+        if (loai === null)
+            throw new BoHongError(`${d}.loai`, `cần một trong ${LOAI_TEP.join(", ")}`);
+        const kichThuoc = soTrongMienHayNull(o, "kichThuoc", d, 1, 10 * 1024 * 1024);
+        if (kichThuoc === null)
+            throw new BoHongError(`${d}.kichThuoc`, "cần một số nguyên 1–10485760");
+        const sha256BanRo = chuoi(o, "sha256BanRo", d);
+        if (!MAU_SHA_TEP.test(sha256BanRo))
+            throw new BoHongError(`${d}.sha256BanRo`, "cần 64 chữ số hex thường");
+        return { id, tenTep, loai, kichThuoc, sha256BanRo };
+    });
+}
 function docHang(gt, duong, phienBan) {
     const o = doiTuong(gt, duong);
+    if (phienBan < 13 && o["tep"] !== undefined && o["tep"] !== null) {
+        throw new BoHongError(`${duong}.tep`, `bộ phiên bản ${String(phienBan)} không mang tệp`);
+    }
     if (phienBan < 12 && o["dieuKhoan"] !== undefined && o["dieuKhoan"] !== null) {
         throw new BoHongError(`${duong}.dieuKhoan`, `bộ phiên bản ${String(phienBan)} không mang điều khoản`);
     }
@@ -187,6 +226,7 @@ function docHang(gt, duong, phienBan) {
         maThieu: mangChuoiHayNull(o, "maThieu", duong),
         ghiChu: chuoiHayNull(o, "ghiChu", duong),
         dieuKhoan: phienBan < 12 ? null : docDieuKhoanBo(o["dieuKhoan"], `${duong}.dieuKhoan`),
+        tep: phienBan < 13 ? null : docTepBo(o["tep"], `${duong}.tep`),
     };
 }
 function docGoiTco(gt, duong) {
@@ -1110,6 +1150,16 @@ rõ niêm phong — \`leadTimeDays\`, \`paymentDays\` (số ngày, 0–3650), \`
 «không khai»: phong bì không có ô ấy, hay có mà sai kiểu hoặc ngoài miền. Như \`ghiChu\`, chúng là
 **dữ liệu**: không ô nào đi vào phép tính ở §3–§5, §9 tính lại TCO từ \`components\` và \`nguon\` như
 cũ mà không đọc \`dieuKhoan\`, và bộ kiểm chỉ kiểm kiểu và miền của từng ô.
+
+Từ bundle 13, mỗi hàng của lượt chấm còn mang \`tep\`: tệp đính kèm nhà cung cấp niêm phong cùng
+giá — mảng tối đa 5 mục, mỗi mục đúng năm khoá: \`id\` (UUID chữ thường, khác nhau trong mảng),
+\`tenTep\` (chuỗi 1–255 ký tự, tên nhà cung cấp đặt), \`loai\` (\`application/pdf\` ·
+\`image/jpeg\` · \`image/png\`), \`kichThuoc\` (số byte bản rõ, 1–10485760) và \`sha256BanRo\`
+(SHA-256 của bản rõ, 64 chữ số hex thường). Mảng rỗng khi phong bì không đính tệp. Bundle không
+mang khoá, IV hay bản mã của tệp: người kiểm có tệp (bên mua tải về sau khi mở niêm phong) thì băm
+nó bằng SHA-256 và so với \`sha256BanRo\` — khớp nghĩa là đúng tệp đã niêm phong cùng giá. Như
+\`ghiChu\` và \`dieuKhoan\`, \`tep\` là **dữ liệu**: không đi vào phép tính nào, và bộ kiểm chỉ
+kiểm kiểu và miền của từng mục.
 
 ## 8. Lớp dữ liệu nền — benchmark giá \`TRUNG_VI_THEO_GOI_V1\`
 
@@ -4638,6 +4688,7 @@ const { kiemGoiYMay } = __tp_m18;
 const SHA_DAC_TA_CU = {
     10: "97153b067f7ccde87d5bd85343350306c184fbdb8f9d5b9a711bd662571e20d4",
     11: "a31604b3c2635f3a0dfa09f88a76f13ba2e1b3b2c7a9e8b8ae937d01be64caa5",
+    12: "5ca145fc32ca0dbf134035ccf21ff4718f423f6369b023e498940631a5eca038",
 };
 const HAM_THUAN_THAT = (chinhSach, dauVao) => {
     const cs = [];
