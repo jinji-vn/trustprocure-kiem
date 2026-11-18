@@ -22,6 +22,9 @@
 //   tools/bo-xuat-danh-gia/src/doc-lap/rui-ro-lai.ts
 //   tools/bo-xuat-danh-gia/src/kiem-rui-ro.ts
 //   tools/bo-xuat-danh-gia/src/kiem-goi-y-may.ts
+//   packages/danh-gia/src/cham-diem.ts
+//   tools/bo-xuat-danh-gia/src/doc-lap/cham-diem-lai.ts
+//   tools/bo-xuat-danh-gia/src/kiem-cham-diem.ts
 //   tools/bo-xuat-danh-gia/src/kiem.ts
 //   tools/bo-xuat-danh-gia/src/kiem-thu-muc.ts
 //   tools/bo-xuat-danh-gia/src/tham-so.ts
@@ -35,8 +38,8 @@ import * as __tp_node_process from "node:process";
 // ---- tools/bo-xuat-danh-gia/src/bo.ts
 const __tp_m1 = (() => {
 const DANG_BUNDLE = "trustprocure/bo-bang-chung-danh-gia";
-const PHIEN_BAN_BUNDLE = 13;
-const PHIEN_BAN_DOC_DUOC = [10, 11, 12, PHIEN_BAN_BUNDLE];
+const PHIEN_BAN_BUNDLE = 14;
+const PHIEN_BAN_DOC_DUOC = [10, 11, 12, 13, PHIEN_BAN_BUNDLE];
 const TEP_DU_LIEU = "bo-bang-chung.json";
 const TEP_DAC_TA = "DAC-TA.md";
 class BoHongError extends Error {
@@ -874,6 +877,90 @@ function docLopYeuCauBo(gt, duong) {
         }),
     };
 }
+function maTepHayNull(o, ten, duong) {
+    if (o[ten] === null)
+        return null;
+    const ds = mangChuoi(o, ten, duong);
+    ds.forEach((x, i) => {
+        if (!MAU_ID_TEP.test(x))
+            throw new BoHongError(`${duong}.${ten}[${String(i)}]`, "cần một UUID chữ thường");
+    });
+    return ds;
+}
+function diemTheoMaHayNull(o, ten, duong) {
+    if (o[ten] === null)
+        return null;
+    const ra = chuoiTheoKhoa(o[ten], `${duong}.${ten}`);
+    if (Object.keys(ra).length > 5)
+        throw new BoHongError(`${duong}.${ten}`, "tối đa 5 tiêu chí");
+    return ra;
+}
+function docDiemKyThuat(gt, duong) {
+    const o = doiTuong(gt, duong);
+    const n = doiTuong(o["nguoiCham"], `${duong}.nguoiCham`);
+    return {
+        id: chuoi(o, "id", duong),
+        bidVersionId: chuoi(o, "bidVersionId", duong),
+        tieuChi: chuoi(o, "tieuChi", duong),
+        nguoiCham: { userId: chuoi(n, "userId", `${duong}.nguoiCham`), hoTen: chuoiHayNull(n, "hoTen", `${duong}.nguoiCham`) },
+        diem: chuoi(o, "diem", duong),
+        lyDo: chuoi(o, "lyDo", duong),
+        chungCuTep: maTepHayNull(o, "chungCuTep", duong),
+        lyDoKhongTep: chuoiHayNull(o, "lyDoKhongTep", duong),
+        luc: moc6(o, "luc", duong),
+    };
+}
+function docLopChamDiem(gt, duong) {
+    if (gt === null)
+        return null;
+    const o = doiTuong(gt, duong);
+    return {
+        nguonThoiGian: chuoi(o, "nguonThoiGian", duong),
+        thuoc: doiTuong(o["thuoc"], `${duong}.thuoc`),
+        chotLuc: moc6HayNull(o, "chotLuc", duong),
+        chotBoi: chuoiHayNull(o, "chotBoi", duong),
+        yeuCauMo: mang(o, "yeuCauMo", duong).map((x, i) => {
+            const p = `${duong}.yeuCauMo[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return {
+                id: chuoi(k, "id", p),
+                loai: chuoi(k, "loai", p),
+                trangThai: chuoi(k, "trangThai", p),
+                yeuCauLuc: moc6(k, "yeuCauLuc", p),
+                thucHienLuc: moc6HayNull(k, "thucHienLuc", p),
+            };
+        }),
+        dieuPhoi: mang(o, "dieuPhoi", duong).map((x, i) => {
+            const p = `${duong}.dieuPhoi[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return { unsealRequestId: chuoi(k, "unsealRequestId", p), userId: chuoi(k, "userId", p), luc: moc6(k, "luc", p) };
+        }),
+        tepKyThuat: mang(o, "tepKyThuat", duong).map((x, i) => {
+            const p = `${duong}.tepKyThuat[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return { bidVersionId: chuoi(k, "bidVersionId", p), maTep: mangChuoi(k, "maTep", p), tep: docTepBo(k["tep"], `${p}.tep`) };
+        }),
+        diem: mang(o, "diem", duong).map((x, i) => docDiemKyThuat(x, `${duong}.diem[${String(i)}]`)),
+        luotCham: mang(o, "luotCham", duong).map((x, i) => {
+            const p = `${duong}.luotCham[${String(i)}]`;
+            const k = doiTuong(x, p);
+            return {
+                evaluationId: chuoi(k, "evaluationId", p),
+                hang: mang(k, "hang", p).map((y, j) => {
+                    const q = `${p}.hang[${String(j)}]`;
+                    const h = doiTuong(y, q);
+                    return {
+                        bidVersionId: chuoi(h, "bidVersionId", q),
+                        diemTieuChi: diemTheoMaHayNull(h, "diemTieuChi", q),
+                        diemChiPhi: chuoiHayNull(h, "diemChiPhi", q),
+                        tongDiem: chuoiHayNull(h, "tongDiem", q),
+                        hangDiem: soNguyenHayNull(h, "hangDiem", q),
+                    };
+                }),
+            };
+        }),
+    };
+}
 function docBo(raw) {
     const o = doiTuong(raw, "$");
     const dang = chuoi(o, "dang", "$");
@@ -889,6 +976,12 @@ function docBo(raw) {
     }
     if (phienBan === 10 && o["yeuCau"] !== undefined && o["yeuCau"] !== null) {
         throw new BoHongError("$.yeuCau", "bộ phiên bản 10 không mang lớp yêu cầu");
+    }
+    if (phienBan < 14 && o["chamDiem"] !== undefined && o["chamDiem"] !== null) {
+        throw new BoHongError("$.chamDiem", `bộ phiên bản ${String(phienBan)} không mang lớp chấm điểm`);
+    }
+    if (phienBan >= 14 && o["chamDiem"] === undefined) {
+        throw new BoHongError("$.chamDiem", "bộ phiên bản 14 phải mang trường chamDiem (null ở gói không thước)");
     }
     return {
         dang,
@@ -906,6 +999,7 @@ function docBo(raw) {
         ruiRo: docRuiRo(o["ruiRo"], "$.ruiRo"),
         goiYMay: phienBan === 10 ? null : docGoiYMay(o["goiYMay"], "$.goiYMay"),
         yeuCau: phienBan === 10 ? null : docLopYeuCauBo(o["yeuCau"], "$.yeuCau"),
+        chamDiem: phienBan < 14 ? null : docLopChamDiem(o["chamDiem"], "$.chamDiem"),
     };
 }
 return Object.freeze({ DANG_BUNDLE, PHIEN_BAN_BUNDLE, PHIEN_BAN_DOC_DUOC, TEP_DU_LIEU, TEP_DAC_TA, BoHongError, docBo });
@@ -915,8 +1009,10 @@ return Object.freeze({ DANG_BUNDLE, PHIEN_BAN_BUNDLE, PHIEN_BAN_DOC_DUOC, TEP_DU
 const __tp_m2 = (() => {
 const { createHash, createPublicKey, verify } = __tp_node_crypto;
 const NHAN_DINH_DANG = "trustprocure-receipt-v1";
+const NHAN_DINH_DANG_V2 = "trustprocure-receipt-v2";
 const THUAT_TOAN = "ECDSA_P256_SHA256";
 const TRUONG_BIEN_NHAN = ["alg", "kid", "rfq_id", "bid_id", "version", "ciphertext_sha256", "submitted_at"];
+const TRUONG_BIEN_NHAN_V2 = ["alg", "kid", "rfq_id", "bid_id", "version", "ky_thuat_sha256", "gia_sha256", "submitted_at"];
 const HEX64 = /^[0-9a-f]{64}$/u;
 function laMucJson(x) {
     return typeof x === "object" && x !== null && !Array.isArray(x);
@@ -965,12 +1061,14 @@ function docVanBan(van) {
     if (!van.endsWith("\n"))
         return "văn bản biên nhận phải kết thúc bằng một dòng mới";
     const dong = van.slice(0, -1).split("\n");
-    if (dong[0] !== NHAN_DINH_DANG)
-        return `dòng đầu phải là "${NHAN_DINH_DANG}"`;
-    if (dong.length !== TRUONG_BIEN_NHAN.length + 1)
-        return `biên nhận phải có đúng ${String(TRUONG_BIEN_NHAN.length + 1)} dòng`;
-    const ra = {};
-    for (const [i, ten] of TRUONG_BIEN_NHAN.entries()) {
+    const laV2 = dong[0] === NHAN_DINH_DANG_V2;
+    if (dong[0] !== NHAN_DINH_DANG && !laV2)
+        return `dòng đầu phải là "${NHAN_DINH_DANG}" hay "${NHAN_DINH_DANG_V2}"`;
+    const truong = laV2 ? TRUONG_BIEN_NHAN_V2 : TRUONG_BIEN_NHAN;
+    if (dong.length !== truong.length + 1)
+        return `biên nhận phải có đúng ${String(truong.length + 1)} dòng`;
+    const ra = { dinh_dang: laV2 ? "v2" : "v1" };
+    for (const [i, ten] of truong.entries()) {
         const d = dong[i + 1] ?? "";
         if (d.includes("\r"))
             return "biên nhận mang ký tự CR — văn bản đã bị đổi xuống dòng sau khi ký";
@@ -981,8 +1079,10 @@ function docVanBan(van) {
     }
     if (ra["alg"] !== THUAT_TOAN)
         return `alg phải là ${THUAT_TOAN}`;
-    if (!HEX64.test(ra["ciphertext_sha256"] ?? ""))
-        return "ciphertext_sha256 không phải 64 ký tự hex thường";
+    for (const ten of laV2 ? ["ky_thuat_sha256", "gia_sha256"] : ["ciphertext_sha256"]) {
+        if (!HEX64.test(ra[ten] ?? ""))
+            return `${ten} không phải 64 ký tự hex thường`;
+    }
     return ra;
 }
 function laP256(spki) {
@@ -1025,7 +1125,8 @@ function kiemBienNhanBangKhoa(vanBan, chuKy, khoa, dauVanTayNeo = null) {
         ok: true,
         dong: [
             `bien-nhan\tkid=${kid}\tdau-van-tay=${k.dauVanTay}\trfq=${truong["rfq_id"] ?? ""}\tbid=${truong["bid_id"] ?? ""}` +
-                `\tversion=${truong["version"] ?? ""}\tnop-luc=${truong["submitted_at"] ?? ""}\n`,
+                `\tversion=${truong["version"] ?? ""}\tnop-luc=${truong["submitted_at"] ?? ""}` +
+                `${truong["dinh_dang"] === "v2" ? "\tdinh-dang=v2" : ""}\n`,
             "ok=true\n",
         ],
     };
@@ -1864,6 +1965,96 @@ Bộ kiểm chỉ kiểm hai điều về chính lớp ấy, và chúng làm tr�
 2. mỗi \`thamChieu[].goiYId\` là \`id\` của một phần tử \`goiY\` có mặt **và** có ít nhất một hàng \`xacNhan\` trỏ tới nó — một gợi ý đã đi vào
    dữ liệu nghiệp vụ mà không ai xác nhận là một gợi ý máy quyết thay người.
 Ngoài ra \`id\` của \`goiY\` và của \`xacNhan\` không trùng trong lớp. Bundle phiên bản 10 không mang lớp này; bộ kiểm đọc nó như trước.
+
+## 14. Lớp chấm điểm — điểm kỹ thuật, điểm chi phí, tổng điểm, hạng điểm (bundle phiên bản 14)
+
+\`chamDiem\` mang đủ đầu vào để tính lại bảng điểm của một gói chấm điểm có trọng số: tiêu chí, trọng số và ngưỡng ghim lúc gói mở; điểm
+kỹ thuật do người chấm ghi TRƯỚC khi giá được mở; điểm chi phí và tổng điểm do máy tính. Bundle phiên bản 14 luôn có trường này; nó là
+\`null\` khi gói không ghim thước chấm điểm, và khi ấy phần này không áp. Bundle 10–13 không mang trường này. Mọi mốc là ISO 8601 UTC đủ
+sáu chữ số lẻ, giờ BẮT ĐẦU giao dịch ghi: so chuỗi là so thời gian. Mọi điểm là chuỗi thập phân 0–100, tối đa hai chữ số lẻ, đọc như §1.
+Điểm và tổng điểm KHÔNG đi vào \`effectiveCost\` (§3): hai phép tính độc lập, §3–§5 không đổi.
+
+### 14.1 Đầu vào
+
+* \`thuoc\` — thước ghim, nguyên văn: \`tieu_chi\` (mảng \`{ ma, ten, loai, trong_so, thang?, nguong? }\`) và \`so_nguoi_cham\`. \`loai\` là
+  \`CHI_PHI\` (điểm do máy tính từ chi phí hiệu dụng) hay \`CHAM_TAY\` (điểm người chấm theo \`thang\`).
+* \`diem\` — MỌI hàng điểm kỹ thuật, kể cả hàng bị thay trước chốt: \`{ id, bidVersionId, tieuChi, nguoiCham: { userId, hoTen }, diem, lyDo,
+  chungCuTep, lyDoKhongTep, luc }\`. Sửa điểm là một hàng mới; hàng cũ ở lại.
+* \`tepKyThuat\` — mỗi báo giá đã mở phong bì kỹ thuật: \`{ bidVersionId, maTep, tep }\`. \`maTep\` là tập mã tệp của phong bì kỹ thuật;
+  \`tep\` mang năm trường không khoá của từng tệp, như §7.
+* \`chotLuc\`, \`chotBoi\` — lúc chốt điểm kỹ thuật và người chốt.
+* \`yeuCauMo\` — mọi yêu cầu mở niêm phong của gói: \`{ id, loai, trangThai, yeuCauLuc, thucHienLuc }\`; \`loai\` là \`KY_THUAT\` hay \`GIA\`.
+* \`dieuPhoi\` — mọi lần điều phối mở của gói: \`{ unsealRequestId, userId, luc }\`.
+* \`luotCham\` — với MỖI lượt chấm của \`luotCham\` cấp cao nhất (cùng \`evaluationId\`, cùng tập \`bidVersionId\`), mỗi hàng
+  \`{ bidVersionId, diemTieuChi, diemChiPhi, tongDiem, hangDiem }\` như lượt chấm đã ghi.
+
+### 14.2 Thước
+
+\`so_nguoi_cham\` là số nguyên 1–5; thước có 2–5 tiêu chí, \`ma\` khác nhau; đúng một tiêu chí \`CHI_PHI\`; \`trong_so\` là chuỗi số nguyên 1–99,
+tổng đúng 100; trọng số của tiêu chí \`CHI_PHI\` ≥ 40; \`nguong\`, nếu có, chỉ ở tiêu chí \`CHAM_TAY\` và là số nguyên 0–100. Thước sai ⇒ bộ
+sai, và các bước 14.3–14.5 không tính.
+
+### 14.3 Điểm một tiêu chí chấm tay
+
+Với một báo giá \`b\` của \`tepKyThuat\` và một tiêu chí \`CHAM_TAY\` \`t\`: lấy các hàng \`diem\` có \`bidVersionId = b\` và \`tieuChi = t\`; với MỖI
+người chấm (\`nguoiCham.userId\`) giữ hàng SAU CÙNG theo \`luc\`, rồi theo \`id\` khi \`luc\` bằng nhau (so chuỗi); điểm của \`t\` =
+LÀM_TRÒN(trung bình các điểm ấy, 2) (§4). Ở mọi lượt chấm, \`diemTieuChi\` của hàng \`b\` mang đúng các điểm ấy, khoá là \`ma\` của các tiêu
+chí \`CHAM_TAY\`.
+
+### 14.4 Ngưỡng
+
+Báo giá DƯỚI NGƯỠNG khi có một tiêu chí \`CHAM_TAY\` có \`nguong\` mà điểm ở 14.3 NHỎ HƠN \`nguong\` (bằng là đạt). Ở mọi lượt chấm, hàng
+của báo giá dưới ngưỡng mang \`maThieu\` chứa \`DUOI_NGUONG_KY_THUAT\` (§9.4) và \`rank = null\`; hàng không dưới ngưỡng không mang mã ấy.
+
+### 14.5 Điểm chi phí, tổng điểm, hạng điểm
+
+Ở mỗi lượt chấm, gọi \`Q\` là các hàng có \`rank\` khác \`null\` (có hạng chi phí, §5), \`x\` là \`effectiveCost\` của một hàng, \`m\` là
+\`effectiveCost\` nhỏ nhất trên \`Q\`.
+
+1. \`diemChiPhi\` = \`100.00\` khi \`x = 0\`; ngược lại LÀM_TRÒN(\`m ÷ x × 100\`, 2), thương tính chính xác rồi làm tròn một lần.
+2. \`tongDiem\` = LÀM_TRÒN(Σ \`trong_so\` × điểm ÷ 100, 2) trên mọi tiêu chí của thước — điểm của tiêu chí \`CHI_PHI\` là \`diemChiPhi\` ĐÃ làm
+   tròn ở bước 1, điểm của tiêu chí \`CHAM_TAY\` là điểm ĐÃ làm tròn ở 14.3. Tổng tính CHÍNH XÁC rồi làm tròn MỘT lần.
+3. \`hangDiem\` = 1 + số hàng của \`Q\` có \`tongDiem\` LỚN HƠN \`tongDiem\` của hàng (giảm dần; bằng điểm thì cùng hạng: \`1, 2, 2, 4\`).
+
+Hàng ngoài \`Q\` mang ba trường \`null\`. Mọi hàng lệch phép tính ở bất kỳ trường nào ⇒ bộ sai. Hạng điểm khác hạng chi phí là một kết luận
+được phép — lời giải trình của người đề xuất nằm ở \`traoThau[].camKet\` (§10).
+
+### 14.6 Thứ tự: chấm, chốt, mở giá
+
+\`chotLuc\` khác \`null\`; mọi hàng \`diem\` có \`luc < chotLuc\`; mọi yêu cầu \`loai = "KY_THUAT"\` có \`yeuCauLuc < chotLuc\`; mọi yêu cầu
+\`loai = "GIA"\` có \`yeuCauLuc > chotLuc\`; và có ít nhất một yêu cầu \`GIA\` với \`trangThai = "EXECUTED"\` (bộ chỉ có khi gói đã chấm, tức
+giá đã mở). Đây là câu «điểm kỹ thuật chốt trước khi ai thấy giá» đọc trên các mốc của bộ.
+
+### 14.7 Đủ người chấm
+
+Mọi hàng \`diem\` trỏ một báo giá của \`tepKyThuat\` và một tiêu chí \`CHAM_TAY\` của thước. Với mọi báo giá của \`tepKyThuat\` và mọi tiêu chí
+\`CHAM_TAY\`: số người chấm khác nhau có hàng \`diem\` ≥ \`so_nguoi_cham\`.
+
+### 14.8 Người chấm độc lập
+
+Với mỗi hàng \`diem\` của người \`u\` ghi lúc \`t\`: \`u\` khác \`quanTri.goi.nguoiTao\`; không phần tử \`quanTri.loiMoi\` nào có \`invitedBy = u\` và
+\`createdAt ≤ t\`, hay \`revokedBy = u\` và \`revokedAt ≤ t\`; không phần tử \`dieuPhoi\` nào có \`userId = u\` và \`luc ≤ t\`.
+
+### 14.9 Chứng cứ
+
+Mỗi hàng \`diem\` có ĐÚNG MỘT trong hai: \`chungCuTep\` (mảng 1–5 mã tệp) hay \`lyDoKhongTep\` (chuỗi). Mọi mã của \`chungCuTep\` nằm trong
+\`maTep\` của CHÍNH báo giá ấy (phần tử \`tepKyThuat\` cùng \`bidVersionId\`); mọi \`tep[].id\` nằm trong \`maTep\` của cùng phần tử. Người kiểm
+có tệp chứng cứ (bên mua tải về sau khi mở) thì băm nó bằng SHA-256 và so với \`sha256BanRo\` của mục cùng mã.
+
+### 14.10 Khớp hai chiều
+
+\`chamDiem.luotCham\` mang đúng các \`evaluationId\` của \`luotCham\` cấp cao nhất, và ở mỗi lượt đúng tập \`bidVersionId\` của lượt ấy.
+
+### 14.11 Khai — cơ sở dữ liệu đã cưỡng chế, phần này KHÔNG tính lại
+
+Lời khai không xung đột của người chấm trước khi chấm (K9); phiên ghi điểm thuộc người chấm và đã qua xác thực hai lớp; quyền chấm điểm;
+lý do dài ít nhất 20 ký tự; người chấm không thấy điểm của người khác trước khi chốt; thước chép từ phiên bản chính sách hiệu lực lúc gói
+mở. \`ten\`, \`thang\`, \`lyDo\`, \`lyDoKhongTep\` và \`hoTen\` là **dữ liệu** để người đọc thấy ai chấm gì, theo thang nào, vì sao; \`hoTen\` là họ
+tên trong hồ sơ người dùng LÚC XUẤT, không phải lúc chấm.
+
+### 14.12 Thông tin, không phán xử
+
+Câu độ nhạy trên màn (điểm nào, trọng số nào thì hai nhà đổi chỗ) không nằm trong bộ: nó tính lại được từ chính các con số của 14.3–14.5.
 `;
 return Object.freeze({ DAC_TA_PHIEN_BAN, DAC_TA });
 })();
@@ -4675,8 +4866,660 @@ function kiemGoiYMay(bo) {
 return Object.freeze({ kiemGoiYMay });
 })();
 
-// ---- tools/bo-xuat-danh-gia/src/kiem.ts
+// ---- packages/danh-gia/src/cham-diem.ts
 const __tp_m19 = (() => {
+const SO_TIEU_CHI_TOI_THIEU = 2;
+const SO_TIEU_CHI_TOI_DA = 5;
+const TRONG_SO_CHI_PHI_TOI_THIEU = 40;
+const DO_DAI_TEN_TOI_DA = 80;
+const DO_DAI_THANG_TOI_DA = 500;
+const SO_NGUOI_CHAM_TOI_DA = 5;
+const KHOA_GOC = ["tieu_chi", "so_nguoi_cham"];
+const KHOA_TIEU_CHI = ["ma", "ten", "loai", "trong_so", "thang", "nguong"];
+const MAU_MA = /^[a-z][a-z0-9_]{1,31}$/u;
+const MAU_TRONG_SO = /^[1-9][0-9]?$/u;
+const MAU_NGUONG = /^(0|[1-9][0-9]?|100)$/u;
+const laObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+function kiemChamDiem(tho) {
+    if (!laObject(tho))
+        return "thước chấm điểm phải là một object";
+    for (const k of Object.keys(tho)) {
+        if (!KHOA_GOC.includes(k))
+            return `thước chấm điểm có khoá lạ "${k}"`;
+    }
+    const soNguoi = tho["so_nguoi_cham"];
+    if (typeof soNguoi !== "number" || !Number.isInteger(soNguoi) || soNguoi < 1 || soNguoi > SO_NGUOI_CHAM_TOI_DA) {
+        return `số người chấm phải là số nguyên từ 1 tới ${String(SO_NGUOI_CHAM_TOI_DA)}`;
+    }
+    const ds = tho["tieu_chi"];
+    if (!Array.isArray(ds) || ds.length < SO_TIEU_CHI_TOI_THIEU || ds.length > SO_TIEU_CHI_TOI_DA) {
+        return `cần từ ${String(SO_TIEU_CHI_TOI_THIEU)} tới ${String(SO_TIEU_CHI_TOI_DA)} tiêu chí`;
+    }
+    const daThay = new Set();
+    let tong = 0;
+    let soChiPhi = 0;
+    for (const [i, t] of ds.entries()) {
+        const thu = `tiêu chí thứ ${String(i + 1)}`;
+        if (!laObject(t))
+            return `${thu} phải là một object`;
+        for (const k of Object.keys(t)) {
+            if (!KHOA_TIEU_CHI.includes(k))
+                return `${thu} có khoá lạ "${k}"`;
+        }
+        const ma = t["ma"];
+        if (typeof ma !== "string" || !MAU_MA.test(ma)) {
+            return `${thu}: mã phải bắt đầu bằng chữ thường, chỉ gồm a–z, 0–9, gạch dưới, dài 2–32 ký tự`;
+        }
+        if (daThay.has(ma))
+            return `tiêu chí "${ma}" khai hai lần`;
+        daThay.add(ma);
+        const ten = t["ten"];
+        if (typeof ten !== "string" || ten.trim() === "" || ten.length > DO_DAI_TEN_TOI_DA) {
+            return `tiêu chí "${ma}": tên không được rỗng và dài tối đa ${String(DO_DAI_TEN_TOI_DA)} ký tự`;
+        }
+        const trongSo = t["trong_so"];
+        if (typeof trongSo !== "string" || !MAU_TRONG_SO.test(trongSo)) {
+            return `tiêu chí "${ma}": trọng số phải là số nguyên từ 1 tới 99`;
+        }
+        tong += Number(trongSo);
+        const loai = t["loai"];
+        if (loai === "CHI_PHI") {
+            soChiPhi += 1;
+            if (t["thang"] !== undefined || t["nguong"] !== undefined) {
+                return `tiêu chí "${ma}" là điểm chi phí do máy tính — không khai thang hay ngưỡng`;
+            }
+            if (Number(trongSo) < TRONG_SO_CHI_PHI_TOI_THIEU) {
+                return `tiêu chí chi phí "${ma}" phải có trọng số từ ${String(TRONG_SO_CHI_PHI_TOI_THIEU)} trở lên`;
+            }
+        }
+        else if (loai === "CHAM_TAY") {
+            const thang = t["thang"];
+            if (typeof thang !== "string" || thang.trim() === "" || thang.length > DO_DAI_THANG_TOI_DA) {
+                return `tiêu chí "${ma}": thang điểm không được rỗng và dài tối đa ${String(DO_DAI_THANG_TOI_DA)} ký tự`;
+            }
+            const nguong = t["nguong"];
+            if (nguong !== undefined && (typeof nguong !== "string" || !MAU_NGUONG.test(nguong))) {
+                return `tiêu chí "${ma}": ngưỡng phải là số nguyên từ 0 tới 100`;
+            }
+        }
+        else {
+            return `tiêu chí "${ma}": loại phải là CHI_PHI hoặc CHAM_TAY`;
+        }
+    }
+    if (soChiPhi !== 1)
+        return "cần đúng một tiêu chí chi phí (CHI_PHI)";
+    if (tong !== 100)
+        return `tổng trọng số phải bằng 100, đang là ${String(tong)}`;
+    return null;
+}
+function docChamDiem(tho) {
+    if (tho === null || tho === undefined)
+        return null;
+    const loi = kiemChamDiem(tho);
+    if (loi !== null)
+        throw new RangeError(`thước chấm điểm không hợp lệ: ${loi}`);
+    const o = tho;
+    return {
+        soNguoiCham: o.so_nguoi_cham,
+        tieuChi: o.tieu_chi.map((t) => ({
+            ma: t["ma"] ?? "",
+            ten: t["ten"] ?? "",
+            loai: t["loai"] === "CHI_PHI" ? "CHI_PHI" : "CHAM_TAY",
+            trongSo: t["trong_so"] ?? "",
+            thang: t["thang"] ?? null,
+            nguong: t["nguong"] ?? null,
+        })),
+    };
+}
+const MA_DUOI_NGUONG_KY_THUAT = "DUOI_NGUONG_KY_THUAT";
+const MAU_SO_2 = /^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/u;
+function doc2(s) {
+    if (typeof s !== "string" || !MAU_SO_2.test(s))
+        throw new RangeError(`số không hợp lệ (cần không âm, tối đa hai chữ số lẻ): "${String(s)}"`);
+    const [nguyen = "0", le = ""] = s.split(".");
+    return BigInt(nguyen) * 100n + BigInt((le + "00").slice(0, 2));
+}
+function viet2(v) {
+    return `${(v / 100n).toString()}.${(v % 100n).toString().padStart(2, "0")}`;
+}
+function chiaTron(tu, mau) {
+    return (2n * tu + mau) / (2n * mau);
+}
+function chiaLen(tu, mau) {
+    const q = tu / mau;
+    return tu % mau !== 0n && tu > 0n ? q + 1n : q;
+}
+function gopDiemTieuChi(hang) {
+    const sauCung = new Map();
+    for (const h of hang) {
+        const khoa = `${h.bidVersionId}\u0000${h.tieuChi}\u0000${h.nguoiCham}`;
+        const truoc = sauCung.get(khoa);
+        if (truoc === undefined || truoc.luc < h.luc || (truoc.luc === h.luc && truoc.id < h.id))
+            sauCung.set(khoa, h);
+    }
+    const cong = new Map();
+    for (const h of sauCung.values()) {
+        const theoBaoGia = cong.get(h.bidVersionId) ?? new Map();
+        cong.set(h.bidVersionId, theoBaoGia);
+        const o = theoBaoGia.get(h.tieuChi) ?? { tong: 0n, so: 0n };
+        theoBaoGia.set(h.tieuChi, { tong: o.tong + doc2(h.diem), so: o.so + 1n });
+    }
+    const kq = new Map();
+    for (const [bid, theoTieuChi] of cong) {
+        const diem = {};
+        for (const [ma, o] of [...theoTieuChi].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+            diem[ma] = viet2(chiaTron(o.tong, o.so));
+        kq.set(bid, diem);
+    }
+    return kq;
+}
+function duoiNguong(thuoc, diemTieuChi) {
+    return thuoc.tieuChi.some((t) => t.loai === "CHAM_TAY" && t.nguong !== null && doc2(diemCua(diemTieuChi, t.ma)) < doc2(t.nguong));
+}
+function diemCua(diemTieuChi, ma) {
+    const d = Object.hasOwn(diemTieuChi, ma) ? diemTieuChi[ma] : undefined;
+    if (d === undefined)
+        throw new RangeError(`thiếu điểm tiêu chí chấm tay "${ma}"`);
+    return d;
+}
+function tuSoTong(thuoc, diemChiPhi, diemTieuChi) {
+    let tu = 0n;
+    for (const t of thuoc.tieuChi)
+        tu += BigInt(t.trongSo) * (t.loai === "CHI_PHI" ? diemChiPhi : doc2(diemCua(diemTieuChi, t.ma)));
+    return tu;
+}
+function diemChiPhiTrenQ(q) {
+    const x = q.map((b) => ({ id: b.bidVersionId, x: doc2(b.chiPhi) }));
+    const min = x.reduce((m, b) => (b.x < m ? b.x : m), x[0]?.x ?? 0n);
+    return new Map(x.map((b) => [b.id, b.x === 0n ? 10000n : chiaTron(min * 10000n, b.x)]));
+}
+function tinhChamDiem(thuoc, baoGia) {
+    const q = baoGia.filter((b) => b.chiPhi !== null);
+    if (q.some((b) => duoiNguong(thuoc, b.diemTieuChi))) {
+        throw new RangeError(`báo giá dưới ngưỡng phải mang ${MA_DUOI_NGUONG_KY_THUAT}, không mang chi phí`);
+    }
+    const diemCp = diemChiPhiTrenQ(q);
+    const tong = q.map((b) => chiaTron(tuSoTong(thuoc, diemCp.get(b.bidVersionId) ?? 0n, b.diemTieuChi), 100n));
+    const theoId = new Map(q.map((b, i) => {
+        const t = tong[i] ?? 0n;
+        return [b.bidVersionId, { cp: diemCp.get(b.bidVersionId) ?? 0n, tong: t, hang: 1 + tong.filter((y) => y > t).length }];
+    }));
+    return baoGia.map((b) => {
+        const k = theoId.get(b.bidVersionId);
+        return k === undefined
+            ? { bidVersionId: b.bidVersionId, diemChiPhi: null, tongDiem: null, hangDiem: null }
+            : { bidVersionId: b.bidVersionId, diemChiPhi: viet2(k.cp), tongDiem: viet2(k.tong), hangDiem: k.hang };
+    });
+}
+function tinhDoNhay(thuoc, baoGia, ketQua) {
+    const q = baoGia.filter((b) => b.chiPhi !== null);
+    const hang = new Map(ketQua.map((k) => [k.bidVersionId, k.hangDiem]));
+    const dau = q.filter((b) => hang.get(b.bidVersionId) === 1);
+    const l = dau[0];
+    if (q.length < 2 || dau.length !== 1 || l === undefined)
+        return null;
+    const diemCp = diemChiPhiTrenQ(q);
+    const tu = new Map(q.map((b) => [b.bidVersionId, tuSoTong(thuoc, diemCp.get(b.bidVersionId) ?? 0n, b.diemTieuChi)]));
+    const tuCua = (b) => tu.get(b.bidVersionId) ?? 0n;
+    const r = q.filter((b) => b !== l).reduce((m, b) => (tuCua(b) > tuCua(m) ? b : m));
+    const chenh = tuCua(l) - tuCua(r);
+    const tieuChi = [];
+    for (const t of thuoc.tieuChi) {
+        if (t.loai !== "CHAM_TAY")
+            continue;
+        const w = BigInt(t.trongSo);
+        let x = chiaLen(w * doc2(diemCua(l.diemTieuChi, t.ma)) - chenh, w);
+        if (t.nguong !== null && doc2(t.nguong) > x)
+            x = doc2(t.nguong);
+        const y = chiaLen(w * doc2(diemCua(r.diemTieuChi, t.ma)) + chenh, w);
+        tieuChi.push({ ma: t.ma, hang1MatKhiDuoi: x > 0n ? viet2(x) : null, hang2LenKhiTu: y <= 10000n ? viet2(y) : null });
+    }
+    const chiPhiMin = q.reduce((m, b) => (doc2(b.chiPhi) < m ? doc2(b.chiPhi) : m), doc2(l.chiPhi));
+    const reNhat = q.filter((b) => doc2(b.chiPhi) === chiPhiMin);
+    let trongSoChiPhiDeTrung = null;
+    if (!reNhat.includes(l)) {
+        const c = reNhat.reduce((m, b) => (tuCua(b) > tuCua(m) ? b : m));
+        const w0 = BigInt(thuoc.tieuChi.find((t) => t.loai === "CHI_PHI")?.trongSo ?? "100");
+        const cp = (b) => diemCp.get(b.bidVersionId) ?? 0n;
+        const tuW = (b, w) => w * cp(b) * (100n - w0) + (100n - w) * (tuCua(b) - w0 * cp(b));
+        for (let w = w0 + 1n; w <= 99n; w += 1n) {
+            const tC = tuW(c, w);
+            if (q.every((b) => tuW(b, w) <= tC)) {
+                trongSoChiPhiDeTrung = Number(w);
+                break;
+            }
+        }
+    }
+    return { hang1: l.bidVersionId, hang2: r.bidVersionId, tieuChi, trongSoChiPhiDeTrung };
+}
+return Object.freeze({ SO_TIEU_CHI_TOI_THIEU, SO_TIEU_CHI_TOI_DA, TRONG_SO_CHI_PHI_TOI_THIEU, DO_DAI_TEN_TOI_DA, DO_DAI_THANG_TOI_DA, SO_NGUOI_CHAM_TOI_DA, kiemChamDiem, docChamDiem, MA_DUOI_NGUONG_KY_THUAT, gopDiemTieuChi, duoiNguong, tinhChamDiem, tinhDoNhay });
+})();
+
+// ---- tools/bo-xuat-danh-gia/src/doc-lap/cham-diem-lai.ts
+const __tp_m20 = (() => {
+const { cong, docThapPhan, soSanh, thuVe, vietThapPhan } = __tp_m5;
+const MA_DUOI_NGUONG = "DUOI_NGUONG_KY_THUAT";
+const KHUON_MA_TIEU_CHI_LAI = /^[a-z][a-z0-9_]{1,31}$/u;
+const KHUON_SO_NGUYEN_1_99 = /^[1-9][0-9]?$/u;
+const KHUON_NGUONG = /^(0|[1-9][0-9]?|100)$/u;
+const KHUON_DIEM = /^(?=.{1,6}$)(0|[1-9][0-9]{0,2})(\.[0-9]{1,2})?$/u;
+const laMucDoiTuong = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
+function docThuocLai(tho) {
+    const so = tho["so_nguoi_cham"];
+    if (typeof so !== "number" || !Number.isInteger(so) || so < 1 || so > 5)
+        return "so_nguoi_cham phải là số nguyên 1–5";
+    const ds = tho["tieu_chi"];
+    if (!Array.isArray(ds) || ds.length < 2 || ds.length > 5)
+        return "thước cần 2–5 tiêu chí";
+    const tieuChi = [];
+    let tong = 0;
+    for (const [i, t] of ds.entries()) {
+        if (!laMucDoiTuong(t))
+            return `tiêu chí thứ ${String(i + 1)} không phải object`;
+        const ma = t["ma"];
+        const loai = t["loai"];
+        const trongSo = t["trong_so"];
+        const nguong = t["nguong"];
+        if (typeof ma !== "string" || !KHUON_MA_TIEU_CHI_LAI.test(ma))
+            return `tiêu chí thứ ${String(i + 1)}: mã sai hình dạng`;
+        if (tieuChi.some((x) => x.ma === ma))
+            return `tiêu chí "${ma}" khai hai lần`;
+        if (loai !== "CHI_PHI" && loai !== "CHAM_TAY")
+            return `tiêu chí "${ma}": loại phải là CHI_PHI hay CHAM_TAY`;
+        if (typeof trongSo !== "string" || !KHUON_SO_NGUYEN_1_99.test(trongSo))
+            return `tiêu chí "${ma}": trọng số phải là số nguyên 1–99`;
+        if (nguong !== undefined && (loai !== "CHAM_TAY" || typeof nguong !== "string" || !KHUON_NGUONG.test(nguong))) {
+            return `tiêu chí "${ma}": ngưỡng chỉ ở CHAM_TAY, số nguyên 0–100`;
+        }
+        if (loai === "CHI_PHI" && Number(trongSo) < 40)
+            return `tiêu chí chi phí "${ma}": trọng số dưới 40`;
+        tong += Number(trongSo);
+        tieuChi.push({ ma, loai, trongSo, nguong: typeof nguong === "string" ? nguong : null });
+    }
+    if (tieuChi.filter((t) => t.loai === "CHI_PHI").length !== 1)
+        return "thước cần đúng một tiêu chí CHI_PHI";
+    if (tong !== 100)
+        return `tổng trọng số là ${String(tong)}, không phải 100`;
+    return { tieuChi, soNguoiCham: so };
+}
+function gon(d) {
+    let i = 0;
+    while (i < d.length - 1 && d[i] === 0)
+        i += 1;
+    return d.slice(i);
+}
+function soSanhNguyen(a, b) {
+    const x = gon(a);
+    const y = gon(b);
+    if (x.length !== y.length)
+        return x.length < y.length ? -1 : 1;
+    for (let i = 0; i < x.length; i += 1) {
+        if ((x[i] ?? 0) !== (y[i] ?? 0))
+            return (x[i] ?? 0) < (y[i] ?? 0) ? -1 : 1;
+    }
+    return 0;
+}
+function truNguyen(a, b) {
+    const x = gon(a);
+    const y = [...new Array(Math.max(0, x.length - gon(b).length)).fill(0), ...gon(b)];
+    const ra = [];
+    let muon = 0;
+    for (let i = x.length - 1; i >= 0; i -= 1) {
+        let t = (x[i] ?? 0) - (y[i] ?? 0) - muon;
+        muon = t < 0 ? 1 : 0;
+        if (t < 0)
+            t += 10;
+        ra.push(t);
+    }
+    return gon(ra.reverse());
+}
+function chiaNguyen(a, b) {
+    const thuong = [];
+    let du = [0];
+    for (const c of a) {
+        du = gon([...du, c]);
+        let k = 0;
+        while (soSanhNguyen(du, b) >= 0) {
+            du = truNguyen(du, b);
+            k += 1;
+        }
+        thuong.push(k);
+    }
+    return gon(thuong.length === 0 ? [0] : thuong);
+}
+function chuSoCua(n) {
+    return [...String(n)].map((c) => c.charCodeAt(0) - 48);
+}
+function veSoLe(x, soLe) {
+    if (x.soLe >= soLe)
+        return thuVe(x, soLe);
+    return { am: x.am, chuSo: [...x.chuSo, ...new Array(soLe - x.soLe).fill(0)], soLe };
+}
+function chiaDaiLamTron(tu, mau, soLe) {
+    const s = Math.max(tu.soLe, mau.soLe);
+    const t = veSoLe(tu, s).chuSo;
+    const m = veSoLe(mau, s).chuSo;
+    const tSo = [...t, ...new Array(soLe).fill(0)];
+    const haiT = cong({ am: false, chuSo: tSo, soLe: 0 }, { am: false, chuSo: tSo, soLe: 0 }).chuSo;
+    const haiM = cong({ am: false, chuSo: m, soLe: 0 }, { am: false, chuSo: m, soLe: 0 }).chuSo;
+    const tuSo = cong({ am: false, chuSo: haiT, soLe: 0 }, { am: false, chuSo: m, soLe: 0 }).chuSo;
+    const q = chiaNguyen(tuSo, haiM);
+    const d = q.length > soLe ? q : [...new Array(soLe + 1 - q.length).fill(0), ...q];
+    return { am: false, chuSo: d, soLe };
+}
+const KHONG_2 = { am: false, chuSo: [0, 0, 0], soLe: 2 };
+function diemDoc(s) {
+    if (!KHUON_DIEM.test(s))
+        return null;
+    const x = docThapPhan(s);
+    if (x === null)
+        return null;
+    const v = veSoLe(x, 2);
+    return soSanh(v, { am: false, chuSo: [1, 0, 0, 0, 0], soLe: 2 }) > 0 ? null : v;
+}
+function diemTieuChiLai(hang, loi) {
+    const theoTieuChi = new Map();
+    for (const h of hang) {
+        const m = theoTieuChi.get(h.tieuChi) ?? new Map();
+        theoTieuChi.set(h.tieuChi, m);
+        const truoc = m.get(h.nguoiCham.userId);
+        if (truoc === undefined || truoc.luc < h.luc || (truoc.luc === h.luc && truoc.id < h.id))
+            m.set(h.nguoiCham.userId, h);
+    }
+    const ra = {};
+    for (const ma of [...theoTieuChi.keys()].sort()) {
+        const cacHang = [...(theoTieuChi.get(ma)?.values() ?? [])];
+        let tong = KHONG_2;
+        let hong = false;
+        for (const h of cacHang) {
+            const d = diemDoc(h.diem);
+            if (d === null) {
+                loi.push(`hàng điểm ${h.id}: điểm "${h.diem}" không phải số 0–100 tối đa hai chữ số lẻ (§14.3)`);
+                hong = true;
+                continue;
+            }
+            tong = cong(tong, d);
+        }
+        if (!hong)
+            ra[ma] = vietThapPhan(chiaDaiLamTron(tong, { am: false, chuSo: chuSoCua(cacHang.length), soLe: 0 }, 2));
+    }
+    return ra;
+}
+function tongDiemLai(thuoc, diemChiPhi, diemTieuChi) {
+    let tong = KHONG_2;
+    for (const t of thuoc.tieuChi) {
+        const s = t.loai === "CHI_PHI" ? diemChiPhi : diemDoc(diemTieuChi[t.ma] ?? "");
+        if (s === null)
+            return null;
+        const w = chuSoCua(Number(t.trongSo));
+        const tich = { am: false, chuSo: nhanNguyen(s.chuSo, w), soLe: 2 };
+        tong = cong(tong, tich);
+    }
+    return thuVe({ am: false, chuSo: tong.chuSo, soLe: 4 }, 2);
+}
+function nhanNguyen(a, b) {
+    const tich = new Array(a.length + b.length).fill(0);
+    for (let i = a.length - 1; i >= 0; i -= 1) {
+        for (let j = b.length - 1; j >= 0; j -= 1) {
+            const t = (a[i] ?? 0) * (b[j] ?? 0) + (tich[i + j + 1] ?? 0);
+            tich[i + j + 1] = t % 10;
+            tich[i + j] = (tich[i + j] ?? 0) + Math.floor(t / 10);
+        }
+    }
+    return gon(tich);
+}
+function tinhLaiChamDiem(lop, luotGoc, chon) {
+    const loi = [];
+    const nguoiCham = new Set(lop.diem.map((d) => d.nguoiCham.userId));
+    const thuoc = docThuocLai(lop.thuoc);
+    if (typeof thuoc === "string") {
+        return { loi: [`thước ghim sai: ${thuoc} (§14.2)`], thuoc: null, ketQua: new Map(), soNguoiCham: nguoiCham.size };
+    }
+    const chamTay = thuoc.tieuChi.filter((t) => t.loai === "CHAM_TAY");
+    const maChamTay = new Set(chamTay.map((t) => t.ma));
+    const tepTheoBaoGia = new Map(lop.tepKyThuat.map((t) => [t.bidVersionId, t]));
+    if (tepTheoBaoGia.size !== lop.tepKyThuat.length)
+        loi.push("tepKyThuat mang một báo giá hai lần (§14.1)");
+    const chot = lop.chotLuc;
+    if (chot === null)
+        loi.push("gói chấm điểm đã có lượt chấm mà chotLuc là null — giá mở khi điểm kỹ thuật chưa chốt (§14.6)");
+    for (const d of lop.diem) {
+        if (chot !== null && !(d.luc < chot))
+            loi.push(`hàng điểm ${d.id} ghi lúc ${d.luc}, không trước lúc chốt ${chot} (§14.6)`);
+    }
+    for (const y of lop.yeuCauMo) {
+        if (y.loai === "GIA" && chot !== null && !(y.yeuCauLuc > chot)) {
+            loi.push(`yêu cầu mở giá ${y.id} lúc ${y.yeuCauLuc}, không sau lúc chốt ${chot} (§14.6)`);
+        }
+        else if (y.loai === "KY_THUAT" && chot !== null && !(y.yeuCauLuc < chot)) {
+            loi.push(`yêu cầu mở kỹ thuật ${y.id} lúc ${y.yeuCauLuc}, không trước lúc chốt ${chot} (§14.6)`);
+        }
+        else if (y.loai !== "GIA" && y.loai !== "KY_THUAT") {
+            loi.push(`yêu cầu mở ${y.id} mang loại lạ "${y.loai}" (§14.1)`);
+        }
+    }
+    if (luotGoc.length > 0 && !lop.yeuCauMo.some((y) => y.loai === "GIA" && y.trangThai === "EXECUTED")) {
+        loi.push("gói đã có lượt chấm mà không có yêu cầu mở giá nào đã thực hiện (§14.6)");
+    }
+    for (const d of lop.diem) {
+        if (!tepTheoBaoGia.has(d.bidVersionId))
+            loi.push(`hàng điểm ${d.id} trỏ báo giá ${d.bidVersionId} chưa mở kỹ thuật (§14.7)`);
+        if (!maChamTay.has(d.tieuChi))
+            loi.push(`hàng điểm ${d.id} trỏ tiêu chí "${d.tieuChi}" không phải tiêu chí chấm tay của thước (§14.7)`);
+    }
+    for (const b of lop.tepKyThuat) {
+        for (const t of chamTay) {
+            const so = new Set(lop.diem.filter((d) => d.bidVersionId === b.bidVersionId && d.tieuChi === t.ma).map((d) => d.nguoiCham.userId)).size;
+            if (so < thuoc.soNguoiCham) {
+                loi.push(`báo giá ${b.bidVersionId}, tiêu chí "${t.ma}": ${String(so)} người chấm, thước đòi ${String(thuoc.soNguoiCham)} (§14.7)`);
+            }
+        }
+    }
+    for (const d of lop.diem) {
+        const u = d.nguoiCham.userId;
+        if (u === chon.nguoiTao)
+            loi.push(`hàng điểm ${d.id}: người chấm ${u} là người tạo gói (§14.8)`);
+        if (chon.loiMoi.some((m) => m.invitedBy === u && m.createdAt <= d.luc))
+            loi.push(`hàng điểm ${d.id}: người chấm ${u} đã mời nhà cung cấp của gói (§14.8)`);
+        if (chon.loiMoi.some((m) => m.revokedBy === u && m.revokedAt !== null && m.revokedAt <= d.luc)) {
+            loi.push(`hàng điểm ${d.id}: người chấm ${u} đã thu hồi lời mời của gói (§14.8)`);
+        }
+        if (lop.dieuPhoi.some((p) => p.userId === u && p.luc <= d.luc))
+            loi.push(`hàng điểm ${d.id}: người chấm ${u} đã điều phối mở thầu của gói (§14.8)`);
+    }
+    for (const b of lop.tepKyThuat) {
+        for (const t of b.tep)
+            if (!b.maTep.includes(t.id))
+                loi.push(`báo giá ${b.bidVersionId}: tệp ${t.id} không nằm trong maTep (§14.9)`);
+    }
+    for (const d of lop.diem) {
+        const coTep = d.chungCuTep !== null;
+        if (coTep === (d.lyDoKhongTep !== null)) {
+            loi.push(`hàng điểm ${d.id}: cần đúng một trong chungCuTep, lyDoKhongTep (§14.9)`);
+            continue;
+        }
+        if (d.chungCuTep === null)
+            continue;
+        if (d.chungCuTep.length < 1 || d.chungCuTep.length > 5)
+            loi.push(`hàng điểm ${d.id}: chungCuTep cần 1–5 mã (§14.9)`);
+        const ma = tepTheoBaoGia.get(d.bidVersionId)?.maTep ?? [];
+        for (const id of d.chungCuTep) {
+            if (!ma.includes(id))
+                loi.push(`hàng điểm ${d.id}: tệp chứng cứ ${id} không thuộc phong bì kỹ thuật của báo giá ${d.bidVersionId} (§14.9)`);
+        }
+    }
+    const diemTheoBaoGia = new Map();
+    for (const b of lop.tepKyThuat) {
+        diemTheoBaoGia.set(b.bidVersionId, diemTieuChiLai(lop.diem.filter((d) => d.bidVersionId === b.bidVersionId && maChamTay.has(d.tieuChi)), loi));
+    }
+    const ketQua = new Map();
+    for (const luot of luotGoc) {
+        const q = luot.hang.filter((h) => h.rank !== null);
+        const chiPhi = new Map();
+        for (const h of q) {
+            const x = h.effectiveCost === null ? null : docThapPhan(h.effectiveCost);
+            if (x === null || x.am)
+                loi.push(`lượt chấm ${luot.evaluationId}: hàng ${h.bidVersionId} có hạng mà effectiveCost không đọc được (§14.5)`);
+            else
+                chiPhi.set(h.bidVersionId, veSoLe(x, 2));
+        }
+        let min = null;
+        for (const x of chiPhi.values())
+            if (min === null || soSanh(x, min) < 0)
+                min = x;
+        const kq = new Map();
+        const tong = new Map();
+        for (const h of luot.hang) {
+            const diemTieuChi = diemTheoBaoGia.get(h.bidVersionId) ?? {};
+            const duoiNguong = chamTay.some((t) => {
+                const s = diemTieuChi[t.ma];
+                const n = t.nguong === null ? null : docThapPhan(t.nguong);
+                return s !== undefined && n !== null && soSanh(veSoLe(docThapPhan(s) ?? KHONG_2, 2), veSoLe(n, 2)) < 0;
+            });
+            if (duoiNguong && h.rank !== null)
+                loi.push(`lượt chấm ${luot.evaluationId}: báo giá ${h.bidVersionId} dưới ngưỡng mà có hạng chi phí (§14.4)`);
+            const x = chiPhi.get(h.bidVersionId);
+            if (x === undefined || min === null) {
+                kq.set(h.bidVersionId, { diemTieuChi, duoiNguong, diemChiPhi: null, tongDiem: null, hangDiem: null });
+                continue;
+            }
+            const cp = x.chuSo.every((c) => c === 0) ? { am: false, chuSo: [1, 0, 0, 0, 0], soLe: 2 } : chiaDaiLamTron({ am: false, chuSo: [...min.chuSo, 0, 0], soLe: 2 }, x, 2);
+            const t = tongDiemLai(thuoc, cp, diemTieuChi);
+            if (t === null) {
+                loi.push(`lượt chấm ${luot.evaluationId}: báo giá ${h.bidVersionId} có hạng chi phí mà thiếu điểm một tiêu chí chấm tay (§14.5)`);
+                kq.set(h.bidVersionId, { diemTieuChi, duoiNguong, diemChiPhi: vietThapPhan(cp), tongDiem: null, hangDiem: null });
+                continue;
+            }
+            tong.set(h.bidVersionId, t);
+            kq.set(h.bidVersionId, { diemTieuChi, duoiNguong, diemChiPhi: vietThapPhan(cp), tongDiem: vietThapPhan(t), hangDiem: null });
+        }
+        for (const [id, t] of tong) {
+            const k = kq.get(id);
+            if (k === undefined)
+                continue;
+            let hon = 0;
+            for (const u of tong.values())
+                if (soSanh(u, t) > 0)
+                    hon += 1;
+            kq.set(id, { ...k, hangDiem: 1 + hon });
+        }
+        ketQua.set(luot.evaluationId, kq);
+    }
+    return { loi, thuoc, ketQua, soNguoiCham: nguoiCham.size };
+}
+return Object.freeze({ MA_DUOI_NGUONG, docThuocLai, tinhLaiChamDiem });
+})();
+
+// ---- tools/bo-xuat-danh-gia/src/kiem-cham-diem.ts
+const __tp_m21 = (() => {
+const { docChamDiem, gopDiemTieuChi, tinhChamDiem } = __tp_m19;
+const { MA_DUOI_NGUONG, tinhLaiChamDiem } = __tp_m20;
+const CHAM_DIEM_HAM_THUAN_THAT = (bo) => {
+    const lop = bo.chamDiem;
+    if (lop === null)
+        return new Map();
+    try {
+        const thuoc = docChamDiem(lop.thuoc);
+        if (thuoc === null)
+            return "thước vắng";
+        const gop = gopDiemTieuChi(lop.diem.map((d) => ({ id: d.id, bidVersionId: d.bidVersionId, tieuChi: d.tieuChi, nguoiCham: d.nguoiCham.userId, diem: d.diem, luc: d.luc })));
+        const ra = new Map();
+        for (const luot of bo.luotCham) {
+            const kq = tinhChamDiem(thuoc, luot.hang.map((h) => ({ bidVersionId: h.bidVersionId, chiPhi: h.rank === null ? null : h.effectiveCost, diemTieuChi: gop.get(h.bidVersionId) ?? {} })));
+            ra.set(luot.evaluationId, new Map(kq.map((k) => [k.bidVersionId, [k.diemChiPhi, k.tongDiem, k.hangDiem]])));
+        }
+        return ra;
+    }
+    catch (e) {
+        return e instanceof Error ? e.message : String(e);
+    }
+};
+const s = (x) => (x === null ? "null" : String(x));
+function bangNhauDiem(a, b) {
+    if (a === null)
+        return false;
+    const ka = Object.keys(a).sort();
+    const kb = Object.keys(b).sort();
+    return ka.length === kb.length && ka.every((k, i) => k === kb[i] && a[k] === b[k]);
+}
+function kiemChamDiem(bo, hamThuan = CHAM_DIEM_HAM_THUAN_THAT) {
+    const lop = bo.chamDiem;
+    if (lop === null)
+        return null;
+    const lai = tinhLaiChamDiem(lop, bo.luotCham, { nguoiTao: bo.quanTri.goi.nguoiTao, loiMoi: bo.quanTri.loiMoi });
+    const loi = [...lai.loi];
+    const goc = new Map(bo.luotCham.map((l) => [l.evaluationId, l]));
+    const cuaLop = new Map(lop.luotCham.map((l) => [l.evaluationId, l]));
+    for (const id of goc.keys())
+        if (!cuaLop.has(id))
+            loi.push(`lượt chấm ${id} có trong bộ mà vắng ở chamDiem.luotCham (§14.10)`);
+    for (const id of cuaLop.keys())
+        if (!goc.has(id))
+            loi.push(`chamDiem.luotCham mang lượt chấm ${id} không có trong bộ (§14.10)`);
+    const thuan = lai.thuoc === null ? null : hamThuan(bo);
+    if (typeof thuan === "string")
+        loi.push(`lớp hàm thuần không tính được lớp chấm điểm: ${thuan}`);
+    let soHangDaSo = 0;
+    for (const [evaluationId, luotLop] of cuaLop) {
+        const g = goc.get(evaluationId);
+        if (g === undefined)
+            continue;
+        const hangGoc = new Map(g.hang.map((h) => [h.bidVersionId, h]));
+        const hangLop = new Map(luotLop.hang.map((h) => [h.bidVersionId, h]));
+        for (const id of hangGoc.keys())
+            if (!hangLop.has(id))
+                loi.push(`lượt chấm ${evaluationId}: hàng ${id} vắng ở chamDiem.luotCham (§14.10)`);
+        for (const id of hangLop.keys())
+            if (!hangGoc.has(id))
+                loi.push(`lượt chấm ${evaluationId}: chamDiem.luotCham mang hàng ${id} không có trong lượt chấm (§14.10)`);
+        const kqLai = lai.ketQua.get(evaluationId);
+        if (kqLai === undefined)
+            continue;
+        for (const [id, h] of hangLop) {
+            const hg = hangGoc.get(id);
+            const k = kqLai.get(id);
+            if (hg === undefined || k === undefined)
+                continue;
+            soHangDaSo += 1;
+            const nhan = `lượt chấm ${evaluationId}: hàng ${id}`;
+            if (!bangNhauDiem(h.diemTieuChi, k.diemTieuChi)) {
+                loi.push(`${nhan} — diemTieuChi đã lưu ${JSON.stringify(h.diemTieuChi)}, tính lại ra ${JSON.stringify(k.diemTieuChi)} (§14.3)`);
+            }
+            const coMa = (hg.maThieu ?? []).includes(MA_DUOI_NGUONG);
+            if (coMa !== k.duoiNguong) {
+                loi.push(`${nhan} — ${k.duoiNguong ? "dưới ngưỡng mà maThieu không mang" : "đạt ngưỡng mà maThieu mang"} ${MA_DUOI_NGUONG} (§14.4)`);
+            }
+            const truong = [
+                ["diemChiPhi", h.diemChiPhi, k.diemChiPhi],
+                ["tongDiem", h.tongDiem, k.tongDiem],
+                ["hangDiem", h.hangDiem, k.hangDiem],
+            ];
+            for (const [ten, luu, tinh] of truong) {
+                if (luu !== tinh)
+                    loi.push(`${nhan} — ${ten} đã lưu ${s(luu)}, tính lại ra ${s(tinh)} (§14.5)`);
+            }
+            if (thuan !== null && typeof thuan !== "string") {
+                const t = thuan.get(evaluationId)?.get(id);
+                if (t !== undefined && (t[0] !== k.diemChiPhi || t[1] !== k.tongDiem || t[2] !== k.hangDiem)) {
+                    loi.push(`HAI LỚP BẤT ĐỒNG: ${nhan} — lớp hàm thuần ra ${s(t[0])} / ${s(t[1])} / ${s(t[2])}, lớp độc lập ra ` +
+                        `${s(k.diemChiPhi)} / ${s(k.tongDiem)} / ${s(k.hangDiem)} (diemChiPhi / tongDiem / hangDiem)`);
+                }
+            }
+        }
+    }
+    return {
+        loi,
+        soBaoGia: lop.tepKyThuat.length,
+        soHangDiem: lop.diem.length,
+        soNguoiCham: lai.soNguoiCham,
+        soHangDaSo,
+    };
+}
+return Object.freeze({ CHAM_DIEM_HAM_THUAN_THAT, kiemChamDiem });
+})();
+
+// ---- tools/bo-xuat-danh-gia/src/kiem.ts
+const __tp_m22 = (() => {
 const { DAC_TA } = __tp_m3; const { laTuChoi, tinhChiPhiHieuDung } = __tp_m4;
 const { khongTinhDuoc, tinhLai, xepHangLai } = __tp_m5;
 const { PHIEN_BAN_BUNDLE } = __tp_m1;
@@ -4685,10 +5528,12 @@ const { QUY_DOI_THAT, kiemCamKet, kiemQuyDoiHang, kiemTapMa, soQuyDoi } = __tp_m
 const { kiemQuanTri } = __tp_m15;
 const { kiemRuiRo } = __tp_m17;
 const { kiemGoiYMay } = __tp_m18;
+const { CHAM_DIEM_HAM_THUAN_THAT, kiemChamDiem } = __tp_m21;
 const SHA_DAC_TA_CU = {
     10: "97153b067f7ccde87d5bd85343350306c184fbdb8f9d5b9a711bd662571e20d4",
     11: "a31604b3c2635f3a0dfa09f88a76f13ba2e1b3b2c7a9e8b8ae937d01be64caa5",
     12: "5ca145fc32ca0dbf134035ccf21ff4718f423f6369b023e498940631a5eca038",
+    13: "402b13a2fbaa19afb06029cbe3fb1baa0f045708d1dd6234de66b06dc5381d42",
 };
 const HAM_THUAN_THAT = (chinhSach, dauVao) => {
     const cs = [];
@@ -4779,7 +5624,7 @@ function kiemThuHang(luot) {
     });
     return noi;
 }
-function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = HAM_THUAN_BENCHMARK_THAT, hamThuanQuyDoi = QUY_DOI_THAT, bamDacTaDiKem = null) {
+function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = HAM_THUAN_BENCHMARK_THAT, hamThuanQuyDoi = QUY_DOI_THAT, bamDacTaDiKem = null, hamThuanChamDiem = CHAM_DIEM_HAM_THUAN_THAT) {
     const loiBo = [];
     const dacTaCuKhop = bo.phienBan !== PHIEN_BAN_BUNDLE && bamDacTaDiKem !== null && SHA_DAC_TA_CU[bo.phienBan] === bamDacTaDiKem;
     if (dacTaDiKem !== DAC_TA && !dacTaCuKhop) {
@@ -4821,6 +5666,7 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
     const quanTri = kiemQuanTri(bo);
     const ruiRo = kiemRuiRo(bo);
     const goiYMay = kiemGoiYMay(bo);
+    const chamDiem = kiemChamDiem(bo, hamThuanChamDiem);
     return {
         dat: loiBo.length === 0 &&
             soLech === 0 &&
@@ -4829,7 +5675,8 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
             camKet.loi.length === 0 &&
             quanTri.loi.length === 0 &&
             ruiRo.loi.length === 0 &&
-            (goiYMay === null || goiYMay.loi.length === 0),
+            (goiYMay === null || goiYMay.loi.length === 0) &&
+            (chamDiem === null || chamDiem.loi.length === 0),
         soHang: hang.length,
         soDat,
         soLech,
@@ -4843,18 +5690,19 @@ function kiemBo(bo, dacTaDiKem, hamThuan = HAM_THUAN_THAT, hamThuanBenchmark = H
         quanTri,
         ruiRo,
         goiYMay,
+        chamDiem,
     };
 }
 return Object.freeze({ SHA_DAC_TA_CU, HAM_THUAN_THAT, kiemBo });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/kiem-thu-muc.ts
-const __tp_m20 = (() => {
+const __tp_m23 = (() => {
 const { createHash } = __tp_node_crypto;
 const { readFile } = __tp_node_fs_promises;
 const { join } = __tp_node_path;
 const { TEP_DAC_TA, TEP_DU_LIEU, docBo } = __tp_m1;
-const { kiemBo } = __tp_m19;
+const { kiemBo } = __tp_m22;
 function bam(vanBan) {
     return createHash("sha256").update(Buffer.from(vanBan, "utf8")).digest("hex");
 }
@@ -4910,6 +5758,12 @@ async function kiemThuMuc(thuMuc, ra, loi) {
         ra(`goi-y-may\tgoi-y=${String(kq.goiYMay.soGoiY)}\txac-nhan=${String(kq.goiYMay.soXacNhan)}\ttham-chieu=${String(kq.goiYMay.soThamChieu)}` +
             `\tchua-xac-nhan=${String(kq.goiYMay.soChuaXacNhan)}\tloi=${String(kq.goiYMay.loi.length)}\n`);
     }
+    if (kq.chamDiem !== null) {
+        for (const d of kq.chamDiem.loi)
+            ra(`LOI-CHAM-DIEM\t${d}\n`);
+        ra(`cham-diem\tbao-gia=${String(kq.chamDiem.soBaoGia)}\thang-diem=${String(kq.chamDiem.soHangDiem)}` +
+            `\tnguoi-cham=${String(kq.chamDiem.soNguoiCham)}\thang-da-so=${String(kq.chamDiem.soHangDaSo)}\tloi=${String(kq.chamDiem.loi.length)}\n`);
+    }
     ra(`${kq.dat ? "ok=true" : "ok=false"}` +
         `\thang=${String(kq.soHang)}\tdat=${String(kq.soDat)}\tlech=${String(kq.soLech)}` +
         `\tkhong-tai-lap-duoc=${String(kq.soKhongTaiLapDuoc)}\n`);
@@ -4919,7 +5773,7 @@ return Object.freeze({ kiemThuMuc });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/tham-so.ts
-const __tp_m21 = (() => {
+const __tp_m24 = (() => {
 function docCo(thamSo, can, tuyChon = []) {
     const duoc = [...can, ...tuyChon];
     const ra = new Map();
@@ -4947,13 +5801,13 @@ return Object.freeze({ docCo });
 })();
 
 // ---- tools/bo-xuat-danh-gia/src/mot-tep/kiem-bang-chung.ts
-const __tp_m22 = (() => {
+const __tp_m25 = (() => {
 const { readFile } = __tp_node_fs_promises;
 const { argv, exit, stderr, stdout } = __tp_node_process;
 const { TEP_DAC_TA, TEP_DU_LIEU } = __tp_m1;
 const { docChuKy, docKhoaDaDan, kiemBienNhanBangKhoa } = __tp_m2;
-const { kiemThuMuc } = __tp_m20;
-const { docCo } = __tp_m21;
+const { kiemThuMuc } = __tp_m23;
+const { docCo } = __tp_m24;
 const CACH_DUNG = `Cách dùng (node trần, không cần kho, không mạng):
   node kiem-bang-chung.mjs <thu-muc-bo>
   node kiem-bang-chung.mjs kiem --bo <thu-muc-bo>
